@@ -35,3 +35,27 @@ export interface CrRowDescriptor {
   link?: string
   ids?: string[]
 }
+
+export interface CrSeason {
+  id: string
+  title: string
+  number: number
+}
+
+export interface CrEpisode {
+  id: string
+  title: string
+  episodeNumber: number
+  seasonNumber: number
+  description: string
+  background: string
+  duration?: number // minutes
+  premium: boolean
+}
+
+export interface CrSeriesInfo {
+  id: string
+  title: string
+  description: string
+  background: string
+}

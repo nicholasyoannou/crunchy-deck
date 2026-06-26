@@ -10,7 +10,9 @@ contextBridge.exposeInMainWorld('cr', {
   api: {
     home: (locale = 'en-US') => ipcRenderer.invoke('api:home', { locale }),
     row: (desc: { title: string; link?: string; ids?: string[] }, locale = 'en-US') =>
-      ipcRenderer.invoke('api:row', { desc, locale })
+      ipcRenderer.invoke('api:row', { desc, locale }),
+    series: (id: string, locale = 'en-US') => ipcRenderer.invoke('api:series', { id, locale }),
+    episodes: (seasonId: string, locale = 'en-US') => ipcRenderer.invoke('api:episodes', { seasonId, locale })
   },
   device: {
     code: () => ipcRenderer.invoke('device:code'),

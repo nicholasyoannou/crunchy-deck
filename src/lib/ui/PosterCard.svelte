@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation'
   import type { CrItem } from '$lib/api/types'
 
   let { uid, item }: { uid: string; item: CrItem } = $props()
@@ -25,6 +26,7 @@
   id={uid}
   data-focusable
   title={item.title}
+  onclick={() => goto(`/series/${item.id}`)}
   class={`group relative shrink-0 overflow-hidden rounded-card bg-surface-2 outline-none transition-transform duration-150 ease-out select:scale-105 select:shadow-2xl select:shadow-black/60 ${size}`}
 >
   <img src={img} alt={item.title} loading="lazy" class="h-full w-full object-cover" />

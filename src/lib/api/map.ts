@@ -1,4 +1,4 @@
-import type { CrItem, CrBanner, Display } from './types'
+import type { CrItem, CrBanner, CrSeason, CrEpisode, CrSeriesInfo, Display } from './types'
 
 // Crunchyroll image arrays are arrays-of-arrays of size variants; access defensively.
 export const placeholder = (id = '') =>
@@ -162,4 +162,36 @@ function mapItem(raw: any): CrItem | null {
 export function mapItems(items: any[]): CrItem[] {
   if (!Array.isArray(items)) return []
   return items.map(mapItem).filter((x): x is CrItem => x !== null)
+}
+
+export function mapSeriesInfo(s: any): CrSeriesInfo | null {
+  if (!s) return null
+  return {
+    id: s.id,
+    title: s.title ?? '',
+    description: s.description ?? '',
+    background: safe(() => s.images.poster_wide[0][4].source, placeholder(s.id))
+  }
+}
+
+export function mapSeasons(items: any[]): CrSeason[] {
+  if (!Array.isArray(items)) return []
+  return items.map((s) => ({ id: s.id, title: s.title ?? '', number: s.season_number ?? 0 }))
+}
+
+export function mapEpisodes(items: any[]): CrEpisode[] {
+  if (!Array.isArray(items)) return []
+  return items.map((e) => ({
+    id: e.id,
+    title: e.title ?? '',
+    episodeNumber: e.episode_number ?? e.sequence_number ?? 0,
+    seasonNumber: e.season_number ?? 0,
+    description: e.description ?? '',
+    background: safe(() => {
+      const v = e.images.thumbnail[0]
+      return v[v.length - 1].source
+    }, placeholder(e.id)),
+    duration: e.duration_ms ? Math.round(e.duration_ms / 60000) : undefined,
+    premium: !!e.is_premium_only
+  }))
 }

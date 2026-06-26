@@ -1,0 +1,54 @@
+import { crFetch, CR } from './client.js'
+import { accessToken } from './auth.js'
+
+// The cms/v2 seasons/episodes endpoints are authorized by signed query params (NOT Bearer),
+// obtained from /index/v2 and valid for a while.
+interface CmsCookie {
+  bucket: string
+  policy: string
+  signature: string
+  key_pair_id: string
+  expires: number
+}
+let cms: CmsCookie | null = null
+
+async function cmsCookie(): Promise<CmsCookie> {
+  if (cms && Date.now() < cms.expires - 60_000) return cms
+  const token = await accessToken()
+  const res: any = await crFetch(`${CR.API}/index/v2`, { bearer: token })
+  const c = res.cms
+  cms = {
+    bucket: c.bucket,
+    policy: c.policy,
+    signature: c.signature,
+    key_pair_id: c.key_pair_id,
+    expires: new Date(c.expires).getTime()
+  }
+  return cms
+}
+
+function sign(c: CmsCookie): string {
+  return `Signature=${c.signature}&Policy=${c.policy}&Key-Pair-Id=${c.key_pair_id}`
+}
+
+export async function loadSeries(id: string, locale = 'en-US') {
+  const token = await accessToken()
+  const obj: any = await crFetch(`${CR.API}/content/v2/cms/objects/${id}?locale=${locale}`, { bearer: token })
+  const series = obj?.data?.[0] ?? null
+
+  let seasons: any[] = []
+  try {
+    const c = await cmsCookie()
+    const s: any = await crFetch(`${CR.API}/cms/v2${c.bucket}/seasons?series_id=${id}&locale=${locale}&${sign(c)}`)
+    seasons = s?.items ?? s?.data ?? []
+  } catch {
+    /* series still usable without seasons */
+  }
+  return { series, seasons }
+}
+
+export async function loadEpisodes(seasonId: string, locale = 'en-US') {
+  const c = await cmsCookie()
+  const e: any = await crFetch(`${CR.API}/cms/v2${c.bucket}/episodes?season_id=${seasonId}&locale=${locale}&${sign(c)}`)
+  return e?.items ?? e?.data ?? []
+}
