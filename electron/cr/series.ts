@@ -1,5 +1,5 @@
 import { crFetch, CR } from './client.js'
-import { accessToken } from './auth.js'
+import { accessToken, accountId } from './auth.js'
 
 // The cms/v2 seasons/episodes endpoints are authorized by signed query params (NOT Bearer),
 // obtained from /index/v2 and valid for a while.
@@ -75,5 +75,30 @@ export async function loadSeries(id: string, locale = 'en-US') {
 export async function loadEpisodes(seasonId: string, locale = 'en-US') {
   const c = await cmsCookie()
   const e: any = await crFetch(`${CR.API}/cms/v2${c.bucket}/episodes?season_id=${seasonId}&locale=${locale}&${sign(c)}`)
-  return e?.items ?? e?.data ?? []
+  const items: any[] = e?.items ?? e?.data ?? []
+
+  // Merge watch progress (playheads) so the grid can show progress bars / watched state.
+  try {
+    const token = await accessToken()
+    const id = accountId()
+    const ids = items
+      .map((x) => x.id)
+      .filter(Boolean)
+      .join(',')
+    if (ids) {
+      const ph: any = await crFetch(`${CR.API}/content/v2/${id}/playheads?content_ids=${ids}&locale=${locale}`, { bearer: token })
+      const map = new Map<string, any>((ph?.data ?? []).map((p: any) => [p.content_id, p]))
+      for (const it of items) {
+        const p = map.get(it.id)
+        if (p) {
+          it.__playhead = p.playhead
+          it.__fully_watched = p.fully_watched
+        }
+      }
+    }
+  } catch {
+    /* progress optional */
+  }
+
+  return items
 }

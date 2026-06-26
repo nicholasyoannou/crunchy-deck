@@ -190,17 +190,25 @@ export function mapSeasons(items: any[]): CrSeason[] {
 
 export function mapEpisodes(items: any[]): CrEpisode[] {
   if (!Array.isArray(items)) return []
-  return items.map((e) => ({
-    id: e.id,
-    title: e.title ?? '',
-    episodeNumber: e.episode_number ?? e.sequence_number ?? 0,
-    seasonNumber: e.season_number ?? 0,
-    description: e.description ?? '',
-    background: safe(() => {
-      const v = e.images.thumbnail[0]
-      return v[v.length - 1].source
-    }, placeholder(e.id)),
-    duration: e.duration_ms ? Math.round(e.duration_ms / 60000) : undefined,
-    premium: !!e.is_premium_only
-  }))
+  return items.map((e) => {
+    const durSec = e.duration_ms ? e.duration_ms / 1000 : 0
+    const ph = e.__playhead ?? 0
+    const watched = !!e.__fully_watched
+    return {
+      id: e.id,
+      title: e.title ?? '',
+      episodeNumber: e.episode_number ?? e.sequence_number ?? 0,
+      seasonNumber: e.season_number ?? 0,
+      description: e.description ?? '',
+      background: safe(() => {
+        const v = e.images.thumbnail[0]
+        return v[v.length - 1].source
+      }, placeholder(e.id)),
+      duration: e.duration_ms ? Math.round(e.duration_ms / 60000) : undefined,
+      premium: !!e.is_premium_only,
+      playhead: ph || undefined,
+      progress: watched ? 100 : durSec ? Math.min(100, (ph / durSec) * 100) : 0,
+      watched
+    }
+  })
 }

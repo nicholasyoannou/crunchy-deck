@@ -51,6 +51,9 @@ export interface CrEpisode {
   background: string
   duration?: number // minutes
   premium: boolean
+  playhead?: number // resume point, seconds
+  progress?: number // 0-100
+  watched?: boolean
 }
 
 export interface CrSeriesInfo {
