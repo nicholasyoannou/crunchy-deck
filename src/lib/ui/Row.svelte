@@ -1,15 +1,51 @@
 <script lang="ts">
-  import type { CrRow } from '$lib/api/types'
+  import { onMount } from 'svelte'
+  import type { CrItem, CrRowDescriptor } from '$lib/api/types'
+  import { mapItems } from '$lib/api/map'
   import PosterCard from './PosterCard.svelte'
+  import SkeletonCard from './SkeletonCard.svelte'
 
-  let { row, index }: { row: CrRow; index: number } = $props()
+  let { row, index }: { row: CrRowDescriptor; index: number } = $props()
+  let items: CrItem[] | null = $state(null)
+  let section: HTMLElement
+
+  async function load() {
+    if (items) return
+    if (!window.cr) {
+      items = []
+      return
+    }
+    const res = await window.cr.api.row({ title: row.title, link: row.link, ids: row.ids })
+    items = res.ok ? mapItems(res.data) : []
+  }
+
+  onMount(() => {
+    // Load when the row gets within ~700px of the viewport (preloads before it's reached).
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          io.disconnect()
+          load()
+        }
+      },
+      { rootMargin: '700px 0px' }
+    )
+    io.observe(section)
+    return () => io.disconnect()
+  })
 </script>
 
-<section class="mb-8">
+<section bind:this={section} class="mb-8" class:hidden={items !== null && items.length === 0}>
   <h2 class="mb-3 text-lg font-bold text-white/80">{row.title}</h2>
   <div class="flex gap-4 overflow-x-auto pb-2">
-    {#each row.items as item, i}
-      <PosterCard uid={`r${index}i${i}`} {item} />
-    {/each}
+    {#if items === null}
+      {#each Array(8) as _i}
+        <SkeletonCard />
+      {/each}
+    {:else}
+      {#each items as item, i}
+        <PosterCard uid={`r${index}i${i}`} {item} />
+      {/each}
+    {/if}
   </div>
 </section>

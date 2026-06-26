@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mapItems, mapBanner, mapHome, placeholder } from './map'
+import { mapItems, mapBanner, mapBanners, placeholder } from './map'
 
 const seriesItem = {
   type: 'series',
@@ -53,30 +53,17 @@ describe('mapBanner', () => {
   })
 })
 
-describe('mapHome', () => {
-  const feed = {
-    data: [
-      { resource_type: 'panel', panel: { id: 'B1', title: 'Hero', description: '', images: { poster_wide: [[{}, {}, {}, {}, { source: 'hero.jpg' }]] } } },
-      { response_type: 'series', title: 'Popular', ids: ['a'] },
-      { response_type: 'history', title: 'Continue', ids: ['b'] },
-      { response_type: 'musicvideo', title: 'Ignored', ids: ['c'] }
-    ]
-  }
-
-  it('keeps only allow-listed, non-empty rows and maps the banner', () => {
-    const home = mapHome(feed, [[seriesItem], [episodeItem]])
-    expect(home.banners[0]?.title).toBe('Hero')
-    expect(home.rows.map((r) => r.title)).toEqual(['Popular', 'Continue'])
-    expect(home.rows[0].items[0].id).toBe('S1')
-    expect(home.rows[1].items[0].title).toBe('One Piece')
+describe('mapBanners', () => {
+  it('falls back to a single promo panel when there are no hero items', () => {
+    const feed = {
+      data: [{ resource_type: 'panel', panel: { id: 'B1', title: 'Hero', description: '', images: { poster_wide: [[{}, {}, {}, {}, { source: 'hero.jpg' }]] } } }]
+    }
+    const banners = mapBanners(feed, [])
+    expect(banners[0]?.title).toBe('Hero')
+    expect(banners[0]?.background).toBe('hero.jpg')
   })
 
-  it('drops rows whose items failed to load', () => {
-    const home = mapHome(feed, [[seriesItem], []])
-    expect(home.rows.map((r) => r.title)).toEqual(['Popular'])
-  })
-
-  it('uses hero_carousel items as banners when present', () => {
+  it('uses hero_carousel items when present (and no simulcasts)', () => {
     const heroFeed = {
       data: [
         {
@@ -88,9 +75,9 @@ describe('mapHome', () => {
         }
       ]
     }
-    const home = mapHome(heroFeed, [])
-    expect(home.banners.map((b) => b.title)).toEqual(['One Piece', 'Bleach'])
-    expect(home.banners[0].background).toBe('op.jpg')
+    const banners = mapBanners(heroFeed, [])
+    expect(banners.map((b) => b.title)).toEqual(['One Piece', 'Bleach'])
+    expect(banners[0].background).toBe('op.jpg')
   })
 
   it('prefers current-season simulcast heroItems over the feed carousel', () => {
@@ -100,8 +87,8 @@ describe('mapHome', () => {
       description: 'mages',
       images: { poster_wide: [[{ source: 'wlo.jpg' }, { source: 'whi.jpg' }]] }
     }
-    const home = mapHome({ data: [] }, [], [series])
-    expect(home.banners.map((b) => b.title)).toEqual(['Wistoria'])
-    expect(home.banners[0].background).toBe('whi.jpg') // biggest variant
+    const banners = mapBanners({ data: [] }, [series])
+    expect(banners.map((b) => b.title)).toEqual(['Wistoria'])
+    expect(banners[0].background).toBe('whi.jpg') // biggest variant
   })
 })

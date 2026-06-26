@@ -1,14 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
-  import type { CrHome } from '$lib/api/types'
+  import type { CrBanner, CrRowDescriptor } from '$lib/api/types'
   import { getHome } from '$lib/api/homeStore'
   import Row from '$lib/ui/Row.svelte'
   import HeroBanner from '$lib/ui/HeroBanner.svelte'
   import SkeletonCard from '$lib/ui/SkeletonCard.svelte'
 
   let phase: 'loading' | 'ready' | 'error' = $state('loading')
-  let home: CrHome | null = $state(null)
+  let banners: CrBanner[] = $state([])
+  let rows: CrRowDescriptor[] = $state([])
   let error = $state('')
 
   onMount(async () => {
@@ -22,15 +23,15 @@
       goto('/login')
       return
     }
-    const r = await getHome() // usually already resolved from the splash prefetch
+    const r = await getHome() // shell only — usually resolved from the splash prefetch
     if (!r.ok) {
       phase = 'error'
       error = r.error
       return
     }
-    home = r.home
+    banners = r.banners
+    rows = r.rows
     phase = 'ready'
-    requestAnimationFrame(() => document.querySelector<HTMLElement>('section [data-focusable]')?.focus())
   })
 </script>
 
@@ -42,24 +43,24 @@
     </div>
   </div>
 {:else if phase === 'loading'}
-  <!-- APK-style skeletons (never a "loading feed" message) -->
+  <!-- shell skeleton (brief — the shell is prefetched during the intro) -->
   <div class="h-screen overflow-hidden p-10">
     <div class="mb-8 h-[42vh] animate-pulse rounded-card bg-surface-2"></div>
-    {#each Array(3) as _row, r}
+    {#each Array(2) as _row}
       <section class="mb-8">
         <div class="mb-3 h-5 w-48 animate-pulse rounded bg-surface-2"></div>
         <div class="flex gap-4 overflow-hidden">
           {#each Array(8) as _card}
-            <SkeletonCard episode={r === 0} />
+            <SkeletonCard />
           {/each}
         </div>
       </section>
     {/each}
   </div>
-{:else if home}
+{:else}
   <div class="h-screen overflow-y-auto p-10">
-    <HeroBanner banners={home.banners} />
-    {#each home.rows as row, i}
+    <HeroBanner {banners} />
+    {#each rows as row, i}
       <Row {row} index={i} />
     {/each}
   </div>

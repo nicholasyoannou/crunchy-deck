@@ -1,4 +1,4 @@
-import type { CrItem, CrBanner, CrRow, CrHome, Display } from './types'
+import type { CrItem, CrBanner, Display } from './types'
 
 // Crunchyroll image arrays are arrays-of-arrays of size variants; access defensively.
 export const placeholder = (id = '') =>
@@ -11,12 +11,6 @@ function safe<T>(fn: () => T, fallback: T): T {
   } catch {
     return fallback
   }
-}
-
-// home_feed rows are panels whose response_type is one of these
-const ROW_TYPES = new Set(['recommendations', 'history', 'browse', 'series', 'because_you_watched'])
-export function isRowPanel(panel: any): boolean {
-  return ROW_TYPES.has(panel?.response_type)
 }
 
 export function mapBanner(panel: any): CrBanner {
@@ -37,8 +31,8 @@ function mapSeriesBanner(s: any): CrBanner | null {
       title: s.title,
       description: s.description ?? '',
       background: safe(() => {
-        const variants = s.images.poster_wide[0]
-        return variants[variants.length - 1].source // biggest wide art
+        const v = s.images.poster_wide[0]
+        return v[v.length - 1].source
       }, placeholder(s.title ?? ''))
     }
   } catch {
@@ -62,6 +56,25 @@ function mapHeroItem(item: any): CrBanner | null {
   } catch {
     return null
   }
+}
+
+/** Preferred hero: current-season simulcasts; fall back to feed hero_carousel, then a promo panel. */
+export function mapBanners(feed: any, heroItems: any[] = []): CrBanner[] {
+  let banners: CrBanner[] = Array.isArray(heroItems)
+    ? heroItems.map(mapSeriesBanner).filter((b: CrBanner | null): b is CrBanner => !!b)
+    : []
+  if (banners.length === 0) {
+    const panels: any[] = feed?.data ?? []
+    const hero = panels.find((p) => p?.resource_type === 'hero_carousel')
+    banners = Array.isArray(hero?.items)
+      ? hero.items.map(mapHeroItem).filter((b: CrBanner | null): b is CrBanner => !!b)
+      : []
+    if (banners.length === 0) {
+      const single = panels.find((p) => p?.resource_type === 'panel')
+      if (single) banners = [mapBanner(single)]
+    }
+  }
+  return banners
 }
 
 function mapItem(raw: any): CrItem | null {
@@ -124,37 +137,4 @@ function mapItem(raw: any): CrItem | null {
 export function mapItems(items: any[]): CrItem[] {
   if (!Array.isArray(items)) return []
   return items.map(mapItem).filter((x): x is CrItem => x !== null)
-}
-
-export function mapRows(rows: Array<{ title: string; items: any[] }>): CrRow[] {
-  return rows.map((r) => ({ title: r.title, items: mapItems(r.items) })).filter((r) => r.items.length > 0)
-}
-
-/**
- * feed = raw home_feed JSON. itemsByRowIndex = items fetched per row, aligned to the
- * FILTERED row-panel order (the main process loads them in that order).
- * Banner = the hero_carousel's inline items (rotating); falls back to a single panel.
- */
-export function mapHome(feed: any, itemsByRowIndex: any[][], heroItems: any[] = []): CrHome {
-  const panels: any[] = feed?.data ?? []
-
-  // Preferred hero: current-season simulcasts. Fall back to the feed's hero_carousel,
-  // then to a single promo panel.
-  let banners: CrBanner[] = Array.isArray(heroItems)
-    ? heroItems.map(mapSeriesBanner).filter((b: CrBanner | null): b is CrBanner => !!b)
-    : []
-  if (banners.length === 0) {
-    const hero = panels.find((p) => p?.resource_type === 'hero_carousel')
-    banners = Array.isArray(hero?.items)
-      ? hero.items.map(mapHeroItem).filter((b: CrBanner | null): b is CrBanner => !!b)
-      : []
-  }
-  if (banners.length === 0) {
-    const single = panels.find((p) => p?.resource_type === 'panel')
-    if (single) banners = [mapBanner(single)]
-  }
-
-  const rowPanels = panels.filter(isRowPanel)
-  const rows = mapRows(rowPanels.map((p, i) => ({ title: p.title, items: itemsByRowIndex[i] ?? [] })))
-  return { banners, rows }
 }

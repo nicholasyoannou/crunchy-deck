@@ -10,7 +10,10 @@ interface CrBridge {
     status(): Promise<CrResult<{ authenticated: boolean; account_id?: string; country?: string }>>
   }
   api: {
-    home(locale?: string): Promise<CrResult<{ feed: any; itemsByRow: any[][]; heroItems: any[] }>>
+    home(
+      locale?: string
+    ): Promise<CrResult<{ feed: any; heroItems: any[]; rows: { title: string; link?: string; ids?: string[] }[] }>>
+    row(desc: { title: string; link?: string; ids?: string[] }, locale?: string): Promise<CrResult<any[]>>
   }
   device: {
     code(): Promise<CrResult<{ device_code: string; user_code: string; verification_uri: string; expires_in: number; interval: number }>>

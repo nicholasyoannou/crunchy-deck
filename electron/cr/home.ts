@@ -1,13 +1,27 @@
 import { crFetch, CR } from './client.js'
 import { accessToken, accountId } from './auth.js'
 
-// rows are panels whose response_type is one of these (must match renderer src/lib/api/map.ts)
-const ROW_TYPES = new Set(['recommendations', 'history', 'browse', 'series', 'because_you_watched'])
+// Content rows (broadened to the full mobile-style set). Feed order is preserved.
+const ROW_TYPES = new Set([
+  'recommendations',
+  'history',
+  'watchlist',
+  'recent_episodes',
+  'browse',
+  'series',
+  'music_video',
+  'because_you_watched'
+])
+
+export interface RowDescriptor {
+  title: string
+  link?: string
+  ids?: string[]
+}
 
 /**
- * Two-step load: home_feed gives panels with ids/links only, so we fetch each row's
- * actual items. Returns the raw feed + items aligned to the FILTERED row order; the
- * renderer's mapHome(feed, itemsByRow) turns it into view models.
+ * Loads only the home SHELL: hero data + row descriptors (titles + how to fetch).
+ * Row items are NOT fetched here — each row loads lazily on scroll via loadRow().
  */
 export async function loadHome(locale = 'en-US') {
   const token = await accessToken()
@@ -26,27 +40,15 @@ export async function loadHome(locale = 'en-US') {
     { bearer: token }
   )
 
-  const rowPanels: any[] = (feed?.data ?? []).filter((p: any) => ROW_TYPES.has(p?.response_type))
+  const rows: RowDescriptor[] = (feed?.data ?? [])
+    .filter((p: any) => ROW_TYPES.has(p?.response_type))
+    .map((p: any) => ({
+      title: p.title,
+      link: p.resource_type === 'dynamic_collection' ? p.link : undefined,
+      ids: p.resource_type !== 'dynamic_collection' ? (p.ids ?? undefined) : undefined
+    }))
 
-  const itemsByRow = await Promise.all(
-    rowPanels.map(async (panel: any) => {
-      try {
-        let url: string
-        if (panel.resource_type === 'dynamic_collection') {
-          url = panel.link?.startsWith('http') ? panel.link : `${CR.API}${panel.link}`
-        } else {
-          url = `${CR.API}/content/v2/cms/objects/${(panel.ids ?? []).join(',')}?locale=${locale}`
-        }
-        const res: any = await crFetch(url, { bearer: token })
-        return res?.data ?? []
-      } catch {
-        return []
-      }
-    })
-  )
-
-  // Hero banner: current-season popular simulcasts (dynamic; the TV home_feed only
-  // serves a stale 2023 "backup" carousel). seasonal_tags[0] is the current season.
+  // Hero: current-season popular simulcasts (the TV home_feed only serves a stale backup).
   let heroItems: any[] = []
   try {
     const tags: any = await crFetch(`${CR.API}/content/v2/discover/seasonal_tags?locale=${locale}`, { bearer: token })
@@ -59,8 +61,23 @@ export async function loadHome(locale = 'en-US') {
       heroItems = browse?.items ?? browse?.data ?? []
     }
   } catch {
-    /* keep the feed even if the hero fetch fails */
+    /* keep the shell even if the hero fetch fails */
   }
 
-  return { feed, itemsByRow, heroItems }
+  return { feed, heroItems, rows }
+}
+
+/** Fetches one row's items on demand (dynamic_collection -> link, else cms/objects by ids). */
+export async function loadRow(desc: RowDescriptor, locale = 'en-US') {
+  const token = await accessToken()
+  let url: string
+  if (desc.link) {
+    url = desc.link.startsWith('http') ? desc.link : `${CR.API}${desc.link}`
+  } else if (desc.ids?.length) {
+    url = `${CR.API}/content/v2/cms/objects/${desc.ids.join(',')}?locale=${locale}`
+  } else {
+    return []
+  }
+  const res: any = await crFetch(url, { bearer: token })
+  return res?.data ?? res?.items ?? []
 }

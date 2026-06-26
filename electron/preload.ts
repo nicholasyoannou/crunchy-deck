@@ -8,7 +8,9 @@ contextBridge.exposeInMainWorld('cr', {
     status: () => ipcRenderer.invoke('auth:status')
   },
   api: {
-    home: (locale = 'en-US') => ipcRenderer.invoke('api:home', { locale })
+    home: (locale = 'en-US') => ipcRenderer.invoke('api:home', { locale }),
+    row: (desc: { title: string; link?: string; ids?: string[] }, locale = 'en-US') =>
+      ipcRenderer.invoke('api:row', { desc, locale })
   },
   device: {
     code: () => ipcRenderer.invoke('device:code'),
