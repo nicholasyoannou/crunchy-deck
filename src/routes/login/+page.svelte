@@ -5,6 +5,10 @@
 
   let mode: 'qr' | 'email' = $state('qr')
 
+  const BG =
+    'https://static.crunchyroll.com/cr-acquisition/assets/img/start/hero/us-global/background-desktop.jpg'
+  let bgLoaded = $state(false)
+
   // QR / device flow
   let qrImg = $state('')
   let userCode = $state('')
@@ -46,11 +50,13 @@
     verifyUri = verification_uri
     qrImg = await QRCode.toDataURL(verification_uri, { width: 240, margin: 1 })
     qrStatus = 'waiting'
+    // CR quirk: expires_in is seconds, but interval is milliseconds.
     expireTimer = setTimeout(() => {
       stopPolling()
       qrStatus = 'expired'
     }, Math.max(5, expires_in) * 1000)
-    poll = setInterval(async () => {
+
+    const doPoll = async () => {
       const p = await window.cr.device.poll(device_code)
       if (!p.ok) return
       const s = p.data.status
@@ -66,7 +72,10 @@
         qrError = p.data.error ?? 'Device login failed'
       }
       // pending / slow_down -> keep waiting
-    }, Math.max(2, interval) * 1000)
+    }
+    const pollMs = Math.min(5000, Math.max(1000, interval)) // interval is ms; clamp to 1–5s
+    doPoll() // poll immediately, then on interval
+    poll = setInterval(doPoll, pollMs)
   }
 
   async function submitEmail(e: Event) {
@@ -95,7 +104,16 @@
   onDestroy(stopPolling)
 </script>
 
-<div class="grid h-screen place-items-center">
+<div class="relative h-screen w-screen overflow-hidden">
+  <img
+    src={BG}
+    alt=""
+    onload={() => (bgLoaded = true)}
+    class="pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-out"
+    style="opacity:{bgLoaded ? 0.3 : 0}"
+  />
+  <div class="absolute inset-0 bg-surface/50"></div>
+  <div class="relative grid h-full place-items-center">
   {#if mode === 'qr'}
     <div class="w-[460px] rounded-card bg-surface-1 p-8 text-center">
       <h1 class="mb-1 text-2xl font-black text-brand">Sign in to Crunchyroll</h1>
@@ -110,12 +128,16 @@
       </div>
 
       {#if qrStatus === 'waiting'}
-        <p class="text-sm text-white/70">
-          Or go to <span class="font-bold text-white">{verifyUri.replace('https://www.', '')}</span>
+        <p class="mb-3 text-sm text-white/70">
+          Or visit <span class="font-semibold text-white">{verifyUri.replace(/^https?:\/\/(www\.)?/, '')}</span> and enter
         </p>
-        <p class="mb-4 mt-1">
-          Code: <span class="font-mono text-2xl font-bold tracking-widest text-brand">{userCode}</span>
-        </p>
+        <div class="mb-4 flex justify-center gap-2">
+          {#each userCode.toUpperCase().split('') as ch}
+            <span
+              class="grid h-12 w-10 place-items-center rounded-md border border-white/15 bg-surface-2 text-2xl font-bold text-white"
+            >{ch}</span>
+          {/each}
+        </div>
         <p class="text-xs text-white/40">Stay on this screen — you'll be signed in automatically.</p>
       {:else if qrStatus === 'starting'}
         <p class="mb-4 text-white/60">Generating code…</p>
@@ -178,4 +200,5 @@
       >← Use QR code instead</button>
     </form>
   {/if}
+  </div>
 </div>

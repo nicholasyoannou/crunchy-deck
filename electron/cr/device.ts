@@ -40,6 +40,7 @@ export async function requestDeviceCode(): Promise<DeviceCode> {
     clientAuth: true,
     form: { device_id: deviceId(), device_type: DEVICE_TYPE, device_name: DEVICE_NAME }
   })
+  console.log('[device] /code response:', JSON.stringify(r))
   return {
     device_code: r.device_code,
     user_code: r.user_code,
@@ -58,17 +59,22 @@ export type PollStatus =
 
 export async function pollDeviceToken(device_code: string): Promise<PollStatus> {
   try {
+    // /device/token wants a JSON body (not form like /device/code) and no grant_type.
+    // While the user hasn't authorized yet, CR replies HTTP 200 with an EMPTY body
+    // (json === undefined) — that is the "pending" signal, not an error.
     const json: any = await crFetch(`${CR.API}/auth/v1/device/token`, {
       clientAuth: true,
-      form: { device_id: deviceId(), device_code, grant_type: 'urn:ietf:params:oauth:grant-type:device_code' }
+      json: { device_id: deviceId(), device_code }
     })
-    if (json?.access_token) {
+    if (json && json.access_token) {
+      console.log('[device] /token authorized')
       adoptToken(json)
       return { status: 'ok' }
     }
     return { status: 'pending' }
   } catch (e) {
     if (e instanceof CrError) {
+      console.log(`[device] /token err status=${e.status} body=${e.message.slice(0, 300)}`)
       const low = e.message.toLowerCase()
       if (low.includes('expired')) return { status: 'expired' }
       if (low.includes('too_many') || low.includes('slow_down')) return { status: 'slow_down' }
@@ -77,6 +83,7 @@ export async function pollDeviceToken(device_code: string): Promise<PollStatus> 
       // generic 4xx during polling = still waiting for the user to authorize
       return { status: 'pending' }
     }
+    console.log('[device] /token non-http err:', String(e).slice(0, 200))
     return { status: 'error', error: String(e).slice(0, 200) }
   }
 }
