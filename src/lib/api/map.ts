@@ -29,6 +29,24 @@ export function mapBanner(panel: any): CrBanner {
   }
 }
 
+// A hero_carousel item carries its own title/description plus a full content `panel`.
+function mapHeroItem(item: any): CrBanner | null {
+  try {
+    const p = item.panel ?? item
+    return {
+      id: p.id ?? String(item.id),
+      title: item.title ?? p.title ?? '',
+      description: item.description ?? p.description ?? '',
+      background: safe(
+        () => p.images.poster_wide[0][4].source,
+        safe(() => p.images.poster_tall[0][2].source, placeholder(item.title ?? ''))
+      )
+    }
+  } catch {
+    return null
+  }
+}
+
 function mapItem(raw: any): CrItem | null {
   try {
     const playhead = raw.playhead ? Math.round(raw.playhead / 60) : undefined
@@ -74,11 +92,21 @@ export function mapRows(rows: Array<{ title: string; items: any[] }>): CrRow[] {
 /**
  * feed = raw home_feed JSON. itemsByRowIndex = items fetched per row, aligned to the
  * FILTERED row-panel order (the main process loads them in that order).
+ * Banner = the hero_carousel's inline items (rotating); falls back to a single panel.
  */
 export function mapHome(feed: any, itemsByRowIndex: any[][]): CrHome {
   const panels: any[] = feed?.data ?? []
-  const bannerPanel = panels.find((p) => p?.resource_type === 'panel')
+
+  const hero = panels.find((p) => p?.resource_type === 'hero_carousel')
+  let banners: CrBanner[] = Array.isArray(hero?.items)
+    ? hero.items.map(mapHeroItem).filter((b: CrBanner | null): b is CrBanner => !!b)
+    : []
+  if (banners.length === 0) {
+    const single = panels.find((p) => p?.resource_type === 'panel')
+    if (single) banners = [mapBanner(single)]
+  }
+
   const rowPanels = panels.filter(isRowPanel)
   const rows = mapRows(rowPanels.map((p, i) => ({ title: p.title, items: itemsByRowIndex[i] ?? [] })))
-  return { banner: bannerPanel ? mapBanner(bannerPanel) : null, rows }
+  return { banners, rows }
 }

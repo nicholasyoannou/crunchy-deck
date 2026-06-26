@@ -25,6 +25,6 @@ export interface CrRow {
 }
 
 export interface CrHome {
-  banner: CrBanner | null
+  banners: CrBanner[]
   rows: CrRow[]
 }

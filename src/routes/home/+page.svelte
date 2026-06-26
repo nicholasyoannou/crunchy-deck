@@ -4,6 +4,7 @@
   import { mapHome } from '$lib/api/map'
   import type { CrHome } from '$lib/api/types'
   import Row from '$lib/ui/Row.svelte'
+  import HeroBanner from '$lib/ui/HeroBanner.svelte'
 
   let phase: 'loading' | 'ready' | 'error' = $state('loading')
   let home: CrHome | null = $state(null)
@@ -28,7 +29,7 @@
     }
     home = mapHome(res.data.feed, res.data.itemsByRow)
     phase = 'ready'
-    requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-focusable]')?.focus())
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('section [data-focusable]')?.focus())
   })
 </script>
 
@@ -43,16 +44,7 @@
   </div>
 {:else if home}
   <div class="h-screen overflow-y-auto p-10">
-    {#if home.banner}
-      <div class="relative mb-8 h-[40vh] overflow-hidden rounded-card">
-        <img src={home.banner.background} alt={home.banner.title} class="h-full w-full object-cover" />
-        <div class="absolute inset-0 bg-gradient-to-t from-surface to-transparent"></div>
-        <div class="absolute bottom-6 left-6 max-w-[60%]">
-          <h1 class="mb-2 text-4xl font-black">{home.banner.title}</h1>
-          <p class="line-clamp-2 text-white/70">{home.banner.description}</p>
-        </div>
-      </div>
-    {/if}
+    <HeroBanner banners={home.banners} />
     {#each home.rows as row, i}
       <Row {row} index={i} />
     {/each}

@@ -65,7 +65,7 @@ describe('mapHome', () => {
 
   it('keeps only allow-listed, non-empty rows and maps the banner', () => {
     const home = mapHome(feed, [[seriesItem], [episodeItem]])
-    expect(home.banner?.title).toBe('Hero')
+    expect(home.banners[0]?.title).toBe('Hero')
     expect(home.rows.map((r) => r.title)).toEqual(['Popular', 'Continue'])
     expect(home.rows[0].items[0].id).toBe('S1')
     expect(home.rows[1].items[0].title).toBe('One Piece')
@@ -74,5 +74,22 @@ describe('mapHome', () => {
   it('drops rows whose items failed to load', () => {
     const home = mapHome(feed, [[seriesItem], []])
     expect(home.rows.map((r) => r.title)).toEqual(['Popular'])
+  })
+
+  it('uses hero_carousel items as banners when present', () => {
+    const heroFeed = {
+      data: [
+        {
+          resource_type: 'hero_carousel',
+          items: [
+            { title: 'One Piece', description: 'pirates', panel: { id: 'OP', images: { poster_wide: [[{}, {}, {}, {}, { source: 'op.jpg' }]] } } },
+            { title: 'Bleach', description: 'shinigami', panel: { id: 'BL', images: { poster_wide: [[{}, {}, {}, {}, { source: 'bl.jpg' }]] } } }
+          ]
+        }
+      ]
+    }
+    const home = mapHome(heroFeed, [])
+    expect(home.banners.map((b) => b.title)).toEqual(['One Piece', 'Bleach'])
+    expect(home.banners[0].background).toBe('op.jpg')
   })
 })
