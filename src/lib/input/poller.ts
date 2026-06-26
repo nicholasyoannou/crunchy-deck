@@ -1,11 +1,9 @@
-import { moveFocus } from './navigate'
 import { buttonToCommand, AxisTracker, type NavCommand, type Direction } from './gamepad'
 import { RepeatTimer } from './repeat'
 import { setInputType } from './inputType'
+import { dispatchCommand } from './commands'
 
-type CommandHandler = (cmd: NavCommand) => void
-
-export function startGamepadPoller(onCommand: CommandHandler) {
+export function startGamepadPoller() {
   const axis = new AxisTracker(0.5, 0.3)
   const repeat = new RepeatTimer({ initialDelay: 320, startInterval: 120, minInterval: 45, ramp: 1000 })
   const prevButtons = new Map<number, boolean>()
@@ -14,10 +12,7 @@ export function startGamepadPoller(onCommand: CommandHandler) {
 
   const now = () => performance.now()
 
-  const dispatch = (cmd: NavCommand) => {
-    if (cmd === 'up' || cmd === 'down' || cmd === 'left' || cmd === 'right') moveFocus(cmd)
-    else onCommand(cmd)
-  }
+  const dispatch = (cmd: NavCommand) => dispatchCommand(cmd)
 
   const loop = () => {
     const pads = navigator.getGamepads?.() ?? []

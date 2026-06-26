@@ -7,6 +7,10 @@
   let index = $state(0)
   let paused = $state(false)
   let progress = $state(0) // 0..1, drives the active dot's orange fill
+  let logoFailed = $state(new Set<number>())
+  function failLogo(i: number) {
+    logoFailed = new Set(logoFailed).add(i)
+  }
   const INTERVAL = 7000
   let raf = 0
   let last: number | null = null
@@ -58,7 +62,16 @@
     <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-surface via-surface/30 to-transparent"></div>
 
     <div class="absolute bottom-8 left-8 max-w-[55%]">
-      <h1 class="mb-2 text-4xl font-black drop-shadow-lg">{banners[index].title}</h1>
+      {#if banners[index].logo && !logoFailed.has(index)}
+        <img
+          src={banners[index].logo}
+          alt={banners[index].title}
+          onerror={() => failLogo(index)}
+          class="mb-3 max-h-28 max-w-[70%] object-contain object-left-bottom drop-shadow-lg"
+        />
+      {:else}
+        <h1 class="mb-2 text-4xl font-black drop-shadow-lg">{banners[index].title}</h1>
+      {/if}
       <p class="line-clamp-2 text-white/80 drop-shadow">{banners[index].description}</p>
     </div>
 

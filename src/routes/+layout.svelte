@@ -2,30 +2,29 @@
   import '../app.css'
   import { onMount } from 'svelte'
   import { startGamepadPoller } from '$lib/input/poller'
-  import { ensureFocus, moveFocus } from '$lib/input/navigate'
+  import { ensureFocus } from '$lib/input/navigate'
+  import { dispatchCommand } from '$lib/input/commands'
+  import MimicControls from '$lib/ui/MimicControls.svelte'
 
   let { children } = $props()
 
   onMount(() => {
-    const stop = startGamepadPoller((cmd) => {
-      if (cmd === 'cancel') history.back()
-    })
+    const stop = startGamepadPoller()
     const id = setInterval(ensureFocus, 500)
 
-    // keyboard fallback so every input path is testable without a controller
     const onKey = (e: KeyboardEvent) => {
       const a = document.activeElement
       const typing = !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')
-      if (e.key === 'ArrowUp') moveFocus('up')
-      else if (e.key === 'ArrowDown') moveFocus('down')
-      else if (e.key === 'ArrowLeft') {
-        if (typing) return // let the text cursor move
-        moveFocus('left')
-      } else if (e.key === 'ArrowRight') {
-        if (typing) return
-        moveFocus('right')
-      } else return
+      let cmd: 'up' | 'down' | 'left' | 'right' | 'confirm' | 'cancel' | null = null
+      if (e.key === 'ArrowUp') cmd = 'up'
+      else if (e.key === 'ArrowDown') cmd = 'down'
+      else if (e.key === 'ArrowLeft') cmd = typing ? null : 'left'
+      else if (e.key === 'ArrowRight') cmd = typing ? null : 'right'
+      else if (e.key === 'Enter') cmd = typing ? null : 'confirm'
+      else if (e.key === 'Backspace' || e.key === 'Escape') cmd = typing ? null : 'cancel'
+      if (!cmd) return
       e.preventDefault()
+      dispatchCommand(cmd)
     }
     window.addEventListener('keydown', onKey)
 
@@ -38,3 +37,4 @@
 </script>
 
 {@render children()}
+<MimicControls />

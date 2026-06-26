@@ -21,6 +21,7 @@ export interface CrBanner {
   title: string
   description: string
   background: string
+  logo?: string // transparent show-logo art when available; otherwise the title text is used
 }
 
 export interface CrRow {
@@ -28,7 +29,9 @@ export interface CrRow {
   items: CrItem[]
 }
 
-export interface CrHome {
-  banners: CrBanner[]
-  rows: CrRow[]
+// A row before its items are fetched (lazy-loaded on scroll).
+export interface CrRowDescriptor {
+  title: string
+  link?: string
+  ids?: string[]
 }
