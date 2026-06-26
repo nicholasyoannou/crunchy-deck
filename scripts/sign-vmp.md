@@ -14,6 +14,9 @@ packaged app to be VMP-signed or they deny license requests.
 4. Re-package the signed dir into the final artifact.
 
 ## M0 result log
-- Date / OS / signed?:
-- Test stream played: yes/no, resolution:
-- Errors:
+- 2026-06-26 / Windows 11 / unsigned dev run: **CDM bootstraps successfully.**
+  `components.whenReady()` reports both modules `status: 'updated'`:
+  Google Widevine Windows CDM 1.0.2738.0 + Widevine Content Decryption Module 4.10.3050.0.
+- Test-stream visual playback (Angel One + CWIP proxy): PENDING human eyes on GUI.
+- On-Deck (Linux, VMP-signed) validation: PENDING (later milestone).
+- Errors: none at CDM init.
