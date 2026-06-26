@@ -26,31 +26,29 @@
 
   onMount(() => {
     resolveTarget()
-    // safety: never hang on a missing/blocked video
-    const t = setTimeout(finishVideo, 6000)
+    const t = setTimeout(finishVideo, 8000) // safety: never hang on a missing/blocked video
     return () => clearTimeout(t)
   })
 
-  // navigate once the animation has played AND we know where to go
   $effect(() => {
     if (videoDone && target) goto(target)
   })
 </script>
 
-<div class="grid h-screen place-items-center bg-surface">
-  <div class="flex flex-col items-center gap-6">
-    <!-- bundled, plays instantly; load happens in the background while it animates -->
-    <video
-      src="/CRLogoIntro.mp4"
-      autoplay
-      muted
-      playsinline
-      onended={finishVideo}
-      onerror={finishVideo}
-      class="w-[440px] max-w-[70vw]"
-    ></video>
-    {#if showSpinner}
-      <div class="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-brand"></div>
-    {/if}
-  </div>
+<div class="fixed inset-0 z-50 bg-black">
+  <!-- bundled, plays instantly + fullscreen; load happens in the background while it animates -->
+  <video
+    src="/CRLogoIntro.mp4"
+    autoplay
+    muted
+    playsinline
+    onended={finishVideo}
+    onerror={finishVideo}
+    class="h-full w-full object-cover"
+  ></video>
+  {#if showSpinner}
+    <div class="absolute inset-x-0 bottom-16 flex justify-center">
+      <div class="h-9 w-9 animate-spin rounded-full border-2 border-white/20 border-t-brand"></div>
+    </div>
+  {/if}
 </div>
