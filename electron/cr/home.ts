@@ -45,5 +45,22 @@ export async function loadHome(locale = 'en-US') {
     })
   )
 
-  return { feed, itemsByRow }
+  // Hero banner: current-season popular simulcasts (dynamic; the TV home_feed only
+  // serves a stale 2023 "backup" carousel). seasonal_tags[0] is the current season.
+  let heroItems: any[] = []
+  try {
+    const tags: any = await crFetch(`${CR.API}/content/v2/discover/seasonal_tags?locale=${locale}`, { bearer: token })
+    const tag = tags?.data?.[0]?.id
+    if (tag) {
+      const browse: any = await crFetch(
+        `${CR.API}/content/v1/browse?season_tag=${tag}&sort_by=popularity&n=12&locale=${locale}`,
+        { bearer: token }
+      )
+      heroItems = browse?.items ?? browse?.data ?? []
+    }
+  } catch {
+    /* keep the feed even if the hero fetch fails */
+  }
+
+  return { feed, itemsByRow, heroItems }
 }

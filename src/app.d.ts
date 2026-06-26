@@ -10,7 +10,7 @@ interface CrBridge {
     status(): Promise<CrResult<{ authenticated: boolean; account_id?: string; country?: string }>>
   }
   api: {
-    home(locale?: string): Promise<CrResult<{ feed: any; itemsByRow: any[][] }>>
+    home(locale?: string): Promise<CrResult<{ feed: any; itemsByRow: any[][]; heroItems: any[] }>>
   }
   device: {
     code(): Promise<CrResult<{ device_code: string; user_code: string; verification_uri: string; expires_in: number; interval: number }>>

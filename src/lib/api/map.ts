@@ -29,6 +29,23 @@ export function mapBanner(panel: any): CrBanner {
   }
 }
 
+// A browse/series object -> banner (used for the current-season simulcast hero).
+function mapSeriesBanner(s: any): CrBanner | null {
+  try {
+    return {
+      id: s.id,
+      title: s.title,
+      description: s.description ?? '',
+      background: safe(() => {
+        const variants = s.images.poster_wide[0]
+        return variants[variants.length - 1].source // biggest wide art
+      }, placeholder(s.title ?? ''))
+    }
+  } catch {
+    return null
+  }
+}
+
 // A hero_carousel item carries its own title/description plus a full content `panel`.
 function mapHeroItem(item: any): CrBanner | null {
   try {
@@ -118,13 +135,20 @@ export function mapRows(rows: Array<{ title: string; items: any[] }>): CrRow[] {
  * FILTERED row-panel order (the main process loads them in that order).
  * Banner = the hero_carousel's inline items (rotating); falls back to a single panel.
  */
-export function mapHome(feed: any, itemsByRowIndex: any[][]): CrHome {
+export function mapHome(feed: any, itemsByRowIndex: any[][], heroItems: any[] = []): CrHome {
   const panels: any[] = feed?.data ?? []
 
-  const hero = panels.find((p) => p?.resource_type === 'hero_carousel')
-  let banners: CrBanner[] = Array.isArray(hero?.items)
-    ? hero.items.map(mapHeroItem).filter((b: CrBanner | null): b is CrBanner => !!b)
+  // Preferred hero: current-season simulcasts. Fall back to the feed's hero_carousel,
+  // then to a single promo panel.
+  let banners: CrBanner[] = Array.isArray(heroItems)
+    ? heroItems.map(mapSeriesBanner).filter((b: CrBanner | null): b is CrBanner => !!b)
     : []
+  if (banners.length === 0) {
+    const hero = panels.find((p) => p?.resource_type === 'hero_carousel')
+    banners = Array.isArray(hero?.items)
+      ? hero.items.map(mapHeroItem).filter((b: CrBanner | null): b is CrBanner => !!b)
+      : []
+  }
   if (banners.length === 0) {
     const single = panels.find((p) => p?.resource_type === 'panel')
     if (single) banners = [mapBanner(single)]

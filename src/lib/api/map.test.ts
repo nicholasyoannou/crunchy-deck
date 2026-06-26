@@ -92,4 +92,16 @@ describe('mapHome', () => {
     expect(home.banners.map((b) => b.title)).toEqual(['One Piece', 'Bleach'])
     expect(home.banners[0].background).toBe('op.jpg')
   })
+
+  it('prefers current-season simulcast heroItems over the feed carousel', () => {
+    const series = {
+      id: 'WIS',
+      title: 'Wistoria',
+      description: 'mages',
+      images: { poster_wide: [[{ source: 'wlo.jpg' }, { source: 'whi.jpg' }]] }
+    }
+    const home = mapHome({ data: [] }, [], [series])
+    expect(home.banners.map((b) => b.title)).toEqual(['Wistoria'])
+    expect(home.banners[0].background).toBe('whi.jpg') // biggest variant
+  })
 })
