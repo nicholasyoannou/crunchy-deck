@@ -11,13 +11,13 @@ function createWindow() {
     backgroundColor: '#0a0a0a',
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(import.meta.dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false
     }
   })
   if (isDev) win.loadURL(process.env.ELECTRON_RENDERER_URL!)
-  else win.loadFile(path.join(import.meta.dirname, '../build/index.html'))
+  else win.loadFile(path.join(__dirname, '../build/index.html'))
 }
 
 app.whenReady().then(async () => {

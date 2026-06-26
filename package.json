@@ -7,7 +7,7 @@
   "scripts": {
     "dev:web": "vite dev --port 5173",
     "build:web": "vite build",
-    "build:electron": "tsc -p tsconfig.node.json",
+    "build:electron": "tsc -p tsconfig.node.json && node scripts/postbuild-electron.mjs",
     "dev": "concurrently -k \"pnpm dev:web\" \"wait-on tcp:5173 && cross-env ELECTRON_RENDERER_URL=http://localhost:5173 electron .\"",
     "build": "pnpm build:web && pnpm build:electron",
     "test": "vitest run",

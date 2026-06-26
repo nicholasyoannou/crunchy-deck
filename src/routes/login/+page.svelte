@@ -30,6 +30,11 @@
     qrStatus = 'starting'
     qrError = ''
     qrImg = ''
+    if (!window.cr) {
+      qrStatus = 'error'
+      qrError = 'Preload bridge unavailable (window.cr missing).'
+      return
+    }
     const res = await window.cr.device.code()
     if (!res.ok) {
       qrStatus = 'error'

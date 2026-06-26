@@ -10,6 +10,11 @@
   let error = $state('')
 
   onMount(async () => {
+    if (!window.cr) {
+      phase = 'error'
+      error = 'Preload bridge unavailable (window.cr missing).'
+      return
+    }
     const s = await window.cr.auth.status()
     if (!s.ok || !s.data.authenticated) {
       goto('/login')
