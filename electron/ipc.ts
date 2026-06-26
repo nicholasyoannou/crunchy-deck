@@ -18,7 +18,7 @@ async function wrap<T>(fn: () => Promise<T>): Promise<Result<T>> {
 }
 
 export function registerIpc() {
-  ipcMain.on('cr:log', (_e, m) => console.log('[renderer]', String(m).slice(0, 600)))
+  ipcMain.on('cr:log', (_e, m) => console.log('[renderer]', String(m).slice(0, 1800)))
   ipcMain.handle('auth:login', (_e, { username, password }) => wrap(() => login(username, password)))
   ipcMain.handle('auth:logout', () => wrap(async () => logout()))
   ipcMain.handle('auth:status', () => wrap(() => status()))
