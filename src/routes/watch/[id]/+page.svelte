@@ -112,6 +112,8 @@
     try {
       await player.load(s.manifestUrl)
       status = 'playing'
+      const t = Number($page.url.searchParams.get('t') || 0)
+      if (t > 0) video.currentTime = t // resume point (seconds)
       await video.play()
       showOverlay()
     } catch (e: any) {

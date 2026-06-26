@@ -16,7 +16,16 @@ interface CrBridge {
       CrResult<{ feed: any; heroCards: any[]; heroItems: any[]; rows: { title: string; link?: string; ids?: string[] }[] }>
     >
     row(desc: { title: string; link?: string; ids?: string[] }, locale?: string): Promise<CrResult<any[]>>
-    series(id: string, locale?: string): Promise<CrResult<{ series: any; seasons: any[] }>>
+    series(
+      id: string,
+      locale?: string
+    ): Promise<
+      CrResult<{
+        series: any
+        seasons: any[]
+        upNext: { id: string; seasonNumber: number; episodeNumber: number; playhead: number; fullyWatched: boolean } | null
+      }>
+    >
     episodes(seasonId: string, locale?: string): Promise<CrResult<any[]>>
   }
   device: {

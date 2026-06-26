@@ -176,7 +176,16 @@ export function mapSeriesInfo(s: any): CrSeriesInfo | null {
 
 export function mapSeasons(items: any[]): CrSeason[] {
   if (!Array.isArray(items)) return []
-  return items.map((s) => ({ id: s.id, title: s.title ?? '', number: s.season_number ?? 0 }))
+  // CR returns one season entry per audio-dub version — dedupe to one per season_number.
+  const seen = new Set<number>()
+  const out: CrSeason[] = []
+  for (const s of items) {
+    const number = s.season_number ?? 0
+    if (seen.has(number)) continue
+    seen.add(number)
+    out.push({ id: s.id, title: s.title ?? `Season ${number}`, number })
+  }
+  return out
 }
 
 export function mapEpisodes(items: any[]): CrEpisode[] {

@@ -44,7 +44,32 @@ export async function loadSeries(id: string, locale = 'en-US') {
   } catch {
     /* series still usable without seasons */
   }
-  return { series, seasons }
+  // Up-next (resume) episode for a "Continue Watching" button.
+  let upNext: {
+    id: string
+    seasonNumber: number
+    episodeNumber: number
+    playhead: number
+    fullyWatched: boolean
+  } | null = null
+  try {
+    const un: any = await crFetch(`${CR.API}/content/v2/discover/up_next/${id}?locale=${locale}`, { bearer: token })
+    const item = un?.data?.[0]
+    if (item?.panel) {
+      const em = item.panel.episode_metadata ?? {}
+      upNext = {
+        id: item.panel.id,
+        seasonNumber: em.season_number ?? 0,
+        episodeNumber: em.episode_number ?? 0,
+        playhead: item.playhead ?? 0,
+        fullyWatched: !!item.fully_watched
+      }
+    }
+  } catch {
+    /* no resume point */
+  }
+
+  return { series, seasons, upNext }
 }
 
 export async function loadEpisodes(seasonId: string, locale = 'en-US') {
