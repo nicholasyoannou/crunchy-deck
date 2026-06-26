@@ -58,15 +58,23 @@ function mapItem(raw: any): CrItem | null {
     let background: string
     let poster: string | undefined
     let duration: number | undefined
+    let episodeNumber: number | undefined
+    let seasonNumber: number | undefined
+    let isPremium = false
 
     if (type === 'episode') {
-      id = item.episode_metadata.series_id
-      title = item.episode_metadata.series_title
-      duration = Math.round(item.episode_metadata.duration_ms / 60000)
+      const em = item.episode_metadata
+      id = em.series_id
+      title = em.series_title
+      duration = Math.round(em.duration_ms / 60000)
+      episodeNumber = em.episode_number ?? undefined
+      seasonNumber = em.season_number ?? undefined
+      isPremium = !!em.is_premium_only
       display = 'episode'
       background = safe(() => item.images.thumbnail[0][4].source, placeholder(id))
     } else if (type === 'movie') {
       duration = Math.round(item.movie_metadata.duration_ms / 60000)
+      isPremium = !!item.movie_metadata?.is_premium_only
       display = 'episode'
       background = safe(() => item.images.thumbnail[0][4].source, placeholder(id))
     } else {
@@ -74,7 +82,23 @@ function mapItem(raw: any): CrItem | null {
       poster = safe(() => item.images.poster_tall[0][2].source, placeholder(id))
     }
 
-    return { id, display, type, title, description: item.description ?? '', background, poster, duration, playhead }
+    const isNew = !!(raw.new ?? item.new ?? item.episode_metadata?.is_new)
+
+    return {
+      id,
+      display,
+      type,
+      title,
+      description: item.description ?? '',
+      background,
+      poster,
+      duration,
+      playhead,
+      episodeNumber,
+      seasonNumber,
+      isNew,
+      isPremium
+    }
   } catch {
     return null
   }

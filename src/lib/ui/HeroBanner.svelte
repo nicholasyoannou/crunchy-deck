@@ -6,36 +6,38 @@
 
   let index = $state(0)
   let paused = $state(false)
+  let progress = $state(0) // 0..1, drives the active dot's orange fill
   const INTERVAL = 7000
-  let timer: ReturnType<typeof setInterval> | null = null
+  let raf = 0
+  let last: number | null = null
 
   function go(i: number) {
     if (banners.length) index = ((i % banners.length) + banners.length) % banners.length
   }
-
-  function start() {
-    stop()
-    if (banners.length > 1) {
-      timer = setInterval(() => {
-        if (!paused) go(index + 1)
-      }, INTERVAL)
-    }
-  }
-  function stop() {
-    if (timer) {
-      clearInterval(timer)
-      timer = null
-    }
-  }
-
-  // manual nav (hover arrows / dots / controller) restarts the dwell timer
   function manual(i: number) {
     go(i)
-    start()
+    progress = 0
+    last = null
   }
 
-  onMount(start)
-  onDestroy(stop)
+  function tick(t: number) {
+    if (last == null) last = t
+    const dt = t - last
+    last = t
+    if (!paused && banners.length > 1) {
+      progress += dt / INTERVAL
+      if (progress >= 1) {
+        progress = 0
+        go(index + 1)
+      }
+    }
+    raf = requestAnimationFrame(tick)
+  }
+
+  onMount(() => {
+    raf = requestAnimationFrame(tick)
+  })
+  onDestroy(() => cancelAnimationFrame(raf))
 </script>
 
 {#if banners.length}
@@ -60,7 +62,6 @@
       <p class="line-clamp-2 text-white/80 drop-shadow">{banners[index].description}</p>
     </div>
 
-    <!-- Desktop hover controls (mimic the Deck's L/R); also controller-focusable -->
     <button
       data-focusable
       aria-label="Previous"
@@ -74,13 +75,17 @@
       class="absolute right-3 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-black/50 text-3xl text-white opacity-0 outline-none transition-opacity duration-200 group-hover:opacity-100 select:bg-brand select:opacity-100"
     >›</button>
 
-    <div class="absolute bottom-4 right-6 flex gap-2">
+    <div class="absolute bottom-4 right-6 flex items-center gap-2">
       {#each banners as _, i}
         <button
           aria-label={`Slide ${i + 1}`}
           onclick={() => manual(i)}
-          class="h-2 rounded-full transition-all {i === index ? 'w-6 bg-brand' : 'w-2 bg-white/40'}"
-        ></button>
+          class="h-2 overflow-hidden rounded-full transition-all {i === index ? 'w-10 bg-white/30' : 'w-2 bg-white/40'}"
+        >
+          {#if i === index}
+            <div class="h-full bg-brand" style="width:{progress * 100}%"></div>
+          {/if}
+        </button>
       {/each}
     </div>
   </div>

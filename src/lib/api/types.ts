@@ -10,6 +10,10 @@ export interface CrItem {
   poster?: string
   duration?: number // minutes
   playhead?: number // minutes
+  episodeNumber?: number
+  seasonNumber?: number
+  isNew?: boolean
+  isPremium?: boolean
 }
 
 export interface CrBanner {
