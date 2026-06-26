@@ -13,7 +13,11 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Shaka fetches CR's DASH manifest/segments (with auth headers) cross-origin from the
+      // renderer; CR's media servers don't answer CORS preflights, so disable web security.
+      // Safe here: we only ever load our own bundled SvelteKit app, never remote content.
+      webSecurity: false
     }
   })
   if (isDev) win.loadURL(process.env.ELECTRON_RENDERER_URL!)
