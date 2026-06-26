@@ -17,5 +17,9 @@ contextBridge.exposeInMainWorld('cr', {
   device: {
     code: () => ipcRenderer.invoke('device:code'),
     poll: (device_code: string) => ipcRenderer.invoke('device:poll', { device_code })
+  },
+  player: {
+    stream: (id: string) => ipcRenderer.invoke('api:stream', { id }),
+    release: (contentId: string, videoToken: string) => ipcRenderer.invoke('api:streamRelease', { contentId, videoToken })
   }
 })

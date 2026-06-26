@@ -25,6 +25,21 @@ interface CrBridge {
       device_code: string
     ): Promise<CrResult<{ status: 'ok' | 'pending' | 'slow_down' | 'expired' | 'error'; error?: string }>>
   }
+  player: {
+    stream(
+      id: string
+    ): Promise<
+      CrResult<{
+        accessToken: string
+        contentId: string
+        videoToken: string
+        manifestUrl: string
+        audioLocale?: string
+        hardSubs: Record<string, { url: string }>
+      }>
+    >
+    release(contentId: string, videoToken: string): Promise<CrResult<void>>
+  }
 }
 
 declare global {
