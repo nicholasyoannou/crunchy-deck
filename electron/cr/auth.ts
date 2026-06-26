@@ -66,14 +66,29 @@ export async function login(username: string, password: string) {
   return { authenticated: true, account_id: state!.account_id, country: state!.country }
 }
 
+// Dedupe concurrent refreshes — CR rotates refresh tokens, so parallel refreshes with the
+// same token would invalidate each other and fail all-but-one (breaks lazy row loads).
+let inflight: Promise<void> | null = null
+
+function ensureFresh(): Promise<void> {
+  if (inflight) return inflight
+  if (state && Date.now() < state.expiresAt) return Promise.resolve()
+  inflight = (async () => {
+    if (!state) {
+      const p = loadPersisted()
+      if (!p) throw new Error('not_authenticated')
+      await refresh(p.refresh_token)
+    } else {
+      await refresh(state.refresh_token)
+    }
+  })().finally(() => {
+    inflight = null
+  })
+  return inflight
+}
+
 export async function accessToken(): Promise<string> {
-  if (!state) {
-    const p = loadPersisted()
-    if (!p) throw new Error('not_authenticated')
-    await refresh(p.refresh_token)
-  } else if (Date.now() >= state.expiresAt) {
-    await refresh(state.refresh_token)
-  }
+  await ensureFresh()
   return state!.access_token
 }
 

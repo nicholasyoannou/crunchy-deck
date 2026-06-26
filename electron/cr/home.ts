@@ -114,6 +114,10 @@ export async function loadRow(desc: RowDescriptor, locale = 'en-US') {
   } else {
     return []
   }
-  const res: any = await crFetch(url, { bearer: token })
-  return res?.data ?? res?.items ?? []
+  try {
+    const res: any = await crFetch(url, { bearer: token })
+    return res?.data ?? res?.items ?? []
+  } catch {
+    return []
+  }
 }

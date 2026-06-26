@@ -59,9 +59,11 @@
         style="opacity:{i === index ? 1 : 0}"
       />
     {/each}
-    <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-surface via-surface/30 to-transparent"></div>
+    <!-- art bleeds on the right; left + bottom fade into the surface behind the logo/text -->
+    <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-surface via-surface/60 to-transparent"></div>
+    <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-surface/90 via-transparent to-transparent"></div>
 
-    <div class="absolute bottom-8 left-8 max-w-[55%]">
+    <div class="absolute bottom-8 left-8 max-w-[50%]">
       {#if banners[index].logo && !logoFailed.has(index)}
         <img
           src={banners[index].logo}

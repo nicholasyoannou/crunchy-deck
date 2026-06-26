@@ -15,12 +15,24 @@
       items = []
       return
     }
-    const res = await window.cr.api.row({ title: row.title, link: row.link, ids: row.ids })
+    // ids is a Svelte reactive Proxy array — spread to a plain array so IPC structuredClone works
+    const res = await window.cr.api.row({ title: row.title, link: row.link, ids: row.ids ? [...row.ids] : undefined })
     items = res.ok ? mapItems(res.data) : []
   }
 
+  function scrollParent(el: HTMLElement): HTMLElement | null {
+    let p = el.parentElement
+    while (p) {
+      const oy = getComputedStyle(p).overflowY
+      if (oy === 'auto' || oy === 'scroll') return p
+      p = p.parentElement
+    }
+    return null
+  }
+
   onMount(() => {
-    // Load when the row gets within ~700px of the viewport (preloads before it's reached).
+    // Observe against the actual scroll container, not the viewport — IO with root:null
+    // doesn't reliably track a nested overflow-y-auto container, so lower rows never fired.
     const io = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
@@ -28,7 +40,7 @@
           load()
         }
       },
-      { rootMargin: '700px 0px' }
+      { root: scrollParent(section), rootMargin: '800px 0px' }
     )
     io.observe(section)
     return () => io.disconnect()
