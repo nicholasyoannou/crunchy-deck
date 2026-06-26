@@ -9,8 +9,10 @@ export async function resolveStream(episodeId: string) {
   return {
     accessToken: token,
     contentId: episodeId,
+    assetId: play.assetId,
     videoToken: play.token,
     manifestUrl: play.url,
+    drmUrl: play?.drm?.drmUrl, // current Widevine license URL (the hardcoded base one is stale)
     audioLocale: play.audioLocale,
     hardSubs: play.hardSubs ?? {}
   }

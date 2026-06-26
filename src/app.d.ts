@@ -42,8 +42,10 @@ interface CrBridge {
       CrResult<{
         accessToken: string
         contentId: string
+        assetId?: string
         videoToken: string
         manifestUrl: string
+        drmUrl?: string
         audioLocale?: string
         hardSubs: Record<string, { url: string }>
       }>

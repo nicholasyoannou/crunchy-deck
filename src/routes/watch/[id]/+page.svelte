@@ -83,7 +83,7 @@
     await player.attach(video)
     player.configure({
       drm: {
-        servers: { 'com.widevine.alpha': LICENSE },
+        servers: { 'com.widevine.alpha': s.drmUrl || LICENSE },
         advanced: {
           'com.widevine.alpha': {
             serverCertificate: b64ToU8(CERT),
@@ -98,17 +98,23 @@
     net.registerRequestFilter((type: any, request: any) => {
       request.headers['Authorization'] = 'Bearer ' + s.accessToken
       if (type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
-        request.headers['X-Cr-Content-Id'] = s.contentId
+        // assetId is the content-id CR's license server accepts (episode GUID -> 400/4005)
+        request.headers['X-Cr-Content-Id'] = s.assetId || s.contentId
         request.headers['X-Cr-Video-Token'] = s.videoToken
         request.headers['Content-Type'] = 'application/octet-stream'
       }
     })
     net.registerResponseFilter((type: any, response: any) => {
-      // CR wraps the Widevine license as base64 inside a JSON body — unwrap it.
+      // Old proxy wrapped the license as base64 inside JSON; the current endpoint may return
+      // the raw license. Unwrap only if it's actually JSON-wrapped.
       if (type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
-        const text = new TextDecoder('utf-8').decode(new Uint8Array(response.data))
-        const obj = JSON.parse(text)
-        response.data = b64ToU8(obj.license).buffer
+        try {
+          const text = new TextDecoder('utf-8').decode(new Uint8Array(response.data))
+          const obj = JSON.parse(text)
+          if (obj && obj.license) response.data = b64ToU8(obj.license).buffer
+        } catch {
+          // raw license bytes — leave response.data unchanged
+        }
       }
     })
 
