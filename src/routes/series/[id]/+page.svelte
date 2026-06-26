@@ -3,6 +3,7 @@
   import { page } from '$app/stores'
   import { goto } from '$app/navigation'
   import { mapSeriesInfo, mapSeasons, mapEpisodes } from '$lib/api/map'
+  import { authGuard } from '$lib/api/guard'
   import type { CrSeriesInfo, CrSeason, CrEpisode } from '$lib/api/types'
 
   type UpNext = { id: string; seasonNumber: number; episodeNumber: number; playhead: number; fullyWatched: boolean } | null
@@ -47,6 +48,7 @@
     }
     const res = await window.cr.api.series(id)
     if (!res.ok) {
+      if (authGuard(res)) return
       phase = 'error'
       error = res.error
       return

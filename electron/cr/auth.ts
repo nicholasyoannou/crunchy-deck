@@ -50,11 +50,17 @@ export function adoptToken(json: any) {
 }
 
 async function refresh(refresh_token: string) {
-  const json = await crFetch(`${CR.API}/auth/v1/token`, {
-    clientAuth: true,
-    form: { refresh_token, grant_type: 'refresh_token', scope: 'offline_access' }
-  })
-  adoptToken(json)
+  try {
+    const json = await crFetch(`${CR.API}/auth/v1/token`, {
+      clientAuth: true,
+      form: { refresh_token, grant_type: 'refresh_token', scope: 'offline_access' }
+    })
+    adoptToken(json)
+  } catch (e) {
+    // refresh token revoked / signed out elsewhere -> drop the local session so we re-prompt login
+    logout()
+    throw e
+  }
 }
 
 export async function login(username: string, password: string) {

@@ -3,7 +3,7 @@ import { mapBanners } from './map'
 
 export type HomeResult =
   | { ok: true; banners: CrBanner[]; rows: CrRowDescriptor[] }
-  | { ok: false; error: string }
+  | { ok: false; error: string; authExpired?: boolean }
 
 // Cached so the splash can kick off the (now lightweight) shell fetch DURING the intro;
 // /home then awaits the same promise and renders instantly. Rows load lazily on scroll.
@@ -12,7 +12,7 @@ let cache: Promise<HomeResult> | null = null
 async function load(): Promise<HomeResult> {
   if (!window.cr) return { ok: false, error: 'Preload bridge unavailable.' }
   const res = await window.cr.api.home('en-US')
-  if (!res.ok) return { ok: false, error: res.error }
+  if (!res.ok) return { ok: false, error: res.error, authExpired: res.authExpired }
   return { ok: true, banners: mapBanners(res.data.feed, res.data.heroCards, res.data.heroItems), rows: res.data.rows }
 }
 

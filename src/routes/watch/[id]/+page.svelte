@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
   import { page } from '$app/stores'
+  import { goto } from '$app/navigation'
+  import { authGuard } from '$lib/api/guard'
   import shaka from 'shaka-player/dist/shaka-player.compiled.js'
 
   let id = $derived($page.params.id ?? '')
@@ -50,6 +52,11 @@
     showOverlay()
   }
 
+  async function reLogin() {
+    await window.cr.auth.logout()
+    goto('/login')
+  }
+
   onMount(async () => {
     if (!window.cr) {
       status = 'error'
@@ -58,6 +65,7 @@
     }
     const res = await window.cr.player.stream(id)
     if (!res.ok) {
+      if (authGuard(res)) return
       status = 'error'
       errorMsg = res.error
       return
@@ -105,8 +113,11 @@
     })
 
     player.addEventListener('error', (e: any) => {
+      const d = e.detail
+      const m = d ? `Shaka ${d.category}.${d.code} :: ${JSON.stringify(d.data ?? [])}` : 'unknown'
+      window.cr.log?.(m)
       status = 'error'
-      errorMsg = 'Shaka error ' + (e.detail?.code ?? '')
+      errorMsg = m.slice(0, 220)
     })
 
     try {
@@ -117,8 +128,11 @@
       await video.play()
       showOverlay()
     } catch (e: any) {
+      const d = e?.detail
+      const m = d ? `Shaka ${d.category}.${d.code} :: ${JSON.stringify(d.data ?? [])}` : 'Load failed: ' + (e?.code ?? e)
+      window.cr.log?.(m)
       status = 'error'
-      errorMsg = 'Load failed: ' + (e?.code ?? e)
+      errorMsg = m.slice(0, 220)
     }
   })
 
@@ -163,8 +177,13 @@
     <div class="absolute inset-0 grid place-items-center text-center">
       <div>
         <p class="mb-2 font-bold text-brand">Playback error</p>
-        <p class="max-w-md break-words text-sm text-white/50">{errorMsg}</p>
-        <p class="mt-2 text-xs text-white/30">Press B / Backspace to go back.</p>
+        <p class="mx-auto max-w-md break-words text-sm text-white/50">{errorMsg}</p>
+        <button
+          data-focusable
+          onclick={reLogin}
+          class="mt-4 rounded bg-brand px-5 py-2 font-bold text-black outline-none select:ring-4 select:ring-white/40"
+        >Sign in again</button>
+        <p class="mt-3 text-xs text-white/30">Or press B / Backspace to go back.</p>
       </div>
     </div>
   {/if}

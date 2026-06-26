@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation'
   import type { CrBanner, CrRowDescriptor } from '$lib/api/types'
   import { getHome } from '$lib/api/homeStore'
+  import { authGuard } from '$lib/api/guard'
   import Row from '$lib/ui/Row.svelte'
   import HeroBanner from '$lib/ui/HeroBanner.svelte'
   import SkeletonCard from '$lib/ui/SkeletonCard.svelte'
@@ -25,6 +26,7 @@
     }
     const r = await getHome() // shell only — usually resolved from the splash prefetch
     if (!r.ok) {
+      if (authGuard(r)) return
       phase = 'error'
       error = r.error
       return

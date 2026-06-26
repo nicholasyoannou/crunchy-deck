@@ -5,17 +5,20 @@ import { loadSeries, loadEpisodes } from './cr/series.js'
 import { resolveStream, releaseStream } from './cr/stream.js'
 import { requestDeviceCode, pollDeviceToken } from './cr/device.js'
 
-type Result<T> = { ok: true; data: T } | { ok: false; error: string }
+type Result<T> = { ok: true; data: T } | { ok: false; error: string; authExpired?: boolean }
 
 async function wrap<T>(fn: () => Promise<T>): Promise<Result<T>> {
   try {
     return { ok: true, data: await fn() }
   } catch (e: any) {
-    return { ok: false, error: String(e?.message ?? e) }
+    const msg = String(e?.message ?? e)
+    const authExpired = e?.status === 401 || /not_authenticated|invalid_grant|unauthorized/i.test(msg)
+    return { ok: false, error: msg, authExpired }
   }
 }
 
 export function registerIpc() {
+  ipcMain.on('cr:log', (_e, m) => console.log('[renderer]', String(m).slice(0, 600)))
   ipcMain.handle('auth:login', (_e, { username, password }) => wrap(() => login(username, password)))
   ipcMain.handle('auth:logout', () => wrap(async () => logout()))
   ipcMain.handle('auth:status', () => wrap(() => status()))

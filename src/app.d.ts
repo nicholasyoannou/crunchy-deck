@@ -1,9 +1,10 @@
 // See https://svelte.dev/docs/kit/types#app
 
-type CrResult<T> = { ok: true; data: T } | { ok: false; error: string }
+type CrResult<T> = { ok: true; data: T } | { ok: false; error: string; authExpired?: boolean }
 
 interface CrBridge {
   version: string
+  log(m: string): void
   auth: {
     login(username: string, password: string): Promise<CrResult<{ authenticated: boolean; account_id?: string; country?: string }>>
     logout(): Promise<CrResult<void>>
