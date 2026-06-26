@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
+  import { prefetchHome } from '$lib/api/homeStore'
 
   let videoDone = $state(false)
   let target: string | null = $state(null) // '/home' | '/login'
@@ -13,7 +14,12 @@
     }
     try {
       const s = await window.cr.auth.status()
-      target = s.ok && s.data.authenticated ? '/home' : '/login'
+      if (s.ok && s.data.authenticated) {
+        prefetchHome() // load the feed while the intro plays -> instant Home
+        target = '/home'
+      } else {
+        target = '/login'
+      }
     } catch {
       target = '/login'
     }
