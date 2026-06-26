@@ -20,12 +20,15 @@ function createWindow() {
   else win.loadFile(path.join(__dirname, '../build/index.html'))
 }
 
-app.whenReady().then(async () => {
-  // castLabs fork: ensure the Widevine CDM is downloaded/ready before the UI loads
-  await components.whenReady()
-  console.log('[cdm] components ready:', components.status())
+app.whenReady().then(() => {
   registerIpc()
-  createWindow()
+  createWindow() // show the UI immediately so the boot animation can play
+  // Widevine CDM loads in the background; only playback needs it, so it must not
+  // block first paint (this is what lets the logo animation mask boot time).
+  components
+    .whenReady()
+    .then(() => console.log('[cdm] components ready:', components.status()))
+    .catch((e) => console.error('[cdm] init error:', e))
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
