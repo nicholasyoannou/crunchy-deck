@@ -1,0 +1,32 @@
+@import '@fontsource-variable/nunito';
+@import '@fontsource/geist-mono';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: only dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+body {
+  @apply bg-surface text-white font-sans;
+  overflow: hidden;
+}
+
+/* always-obvious focus for controller use */
+[data-input='dpad'] [data-focusable]:focus {
+  outline: 3px solid theme('colors.brand');
+  outline-offset: 2px;
+}
+
+/* hide scrollbars (10-foot UI) */
+*::-webkit-scrollbar {
+  display: none;
+}
+* {
+  scrollbar-width: none;
+}
