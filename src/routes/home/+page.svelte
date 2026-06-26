@@ -58,10 +58,12 @@
     {/each}
   </div>
 {:else}
-  <div class="h-screen overflow-y-auto p-10">
+  <div class="h-screen overflow-y-auto">
     <HeroBanner {banners} />
-    {#each rows as row, i}
-      <Row {row} index={i} />
-    {/each}
+    <div class="px-10 pb-10">
+      {#each rows as row, i}
+        <Row {row} index={i} />
+      {/each}
+    </div>
   </div>
 {/if}

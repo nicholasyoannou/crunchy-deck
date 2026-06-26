@@ -46,7 +46,7 @@
 
 {#if banners.length}
   <div
-    class="group relative mb-8 h-[42vh] overflow-hidden rounded-card"
+    class="group relative mb-6 h-[56vh] overflow-hidden"
     role="group"
     onmouseenter={() => (paused = true)}
     onmouseleave={() => (paused = false)}
@@ -78,13 +78,11 @@
     </div>
 
     <button
-      data-focusable
       aria-label="Previous"
       onclick={() => manual(index - 1)}
       class="absolute left-3 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-black/50 text-3xl text-white opacity-0 outline-none transition-opacity duration-200 group-hover:opacity-100 select:bg-brand select:opacity-100"
     >‹</button>
     <button
-      data-focusable
       aria-label="Next"
       onclick={() => manual(index + 1)}
       class="absolute right-3 top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-black/50 text-3xl text-white opacity-0 outline-none transition-opacity duration-200 group-hover:opacity-100 select:bg-brand select:opacity-100"
