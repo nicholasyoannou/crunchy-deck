@@ -1,5 +1,6 @@
 import { app, BrowserWindow, components } from 'electron'
 import path from 'node:path'
+import { registerIpc } from './ipc.js'
 
 const isDev = !!process.env.ELECTRON_RENDERER_URL
 
@@ -23,6 +24,7 @@ app.whenReady().then(async () => {
   // castLabs fork: ensure the Widevine CDM is downloaded/ready before the UI loads
   await components.whenReady()
   console.log('[cdm] components ready:', components.status())
+  registerIpc()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

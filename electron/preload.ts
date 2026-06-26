@@ -1,5 +1,13 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('cr', {
-  version: process.versions.electron
+  version: process.versions.electron,
+  auth: {
+    login: (username: string, password: string) => ipcRenderer.invoke('auth:login', { username, password }),
+    logout: () => ipcRenderer.invoke('auth:logout'),
+    status: () => ipcRenderer.invoke('auth:status')
+  },
+  api: {
+    home: (locale = 'en-US') => ipcRenderer.invoke('api:home', { locale })
+  }
 })
