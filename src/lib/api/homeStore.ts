@@ -13,7 +13,7 @@ async function load(): Promise<HomeResult> {
   if (!window.cr) return { ok: false, error: 'Preload bridge unavailable.' }
   const res = await window.cr.api.home('en-US')
   if (!res.ok) return { ok: false, error: res.error }
-  return { ok: true, banners: mapBanners(res.data.feed, res.data.heroItems), rows: res.data.rows }
+  return { ok: true, banners: mapBanners(res.data.feed, res.data.heroCards, res.data.heroItems), rows: res.data.rows }
 }
 
 export function prefetchHome(): void {

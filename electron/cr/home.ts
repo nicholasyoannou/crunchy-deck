@@ -19,6 +19,31 @@ export interface RowDescriptor {
   ids?: string[]
 }
 
+// The live curated hero lives in the /f/v1/home server-driven UI tree as HeroMediaCard
+// nodes (title/description/contentId/wideImage/logoImage). Walk the tree and collect them.
+function extractHeroCards(tree: any): any[] {
+  const cards: any[] = []
+  const seen = new Set<string>()
+  const walk = (n: any) => {
+    if (Array.isArray(n)) {
+      n.forEach(walk)
+      return
+    }
+    if (n && typeof n === 'object') {
+      if (n.type === 'HeroMediaCard' && n.props) {
+        const key = String(n.props.contentId ?? n.props.title ?? '')
+        if (!seen.has(key)) {
+          seen.add(key)
+          cards.push(n.props)
+        }
+      }
+      for (const k in n) walk(n[k])
+    }
+  }
+  walk(tree)
+  return cards
+}
+
 /**
  * Loads only the home SHELL: hero data + row descriptors (titles + how to fetch).
  * Row items are NOT fetched here — each row loads lazily on scroll via loadRow().
@@ -48,23 +73,34 @@ export async function loadHome(locale = 'en-US') {
       ids: p.resource_type !== 'dynamic_collection' ? (p.ids ?? undefined) : undefined
     }))
 
-  // Hero: current-season popular simulcasts (the TV home_feed only serves a stale backup).
-  let heroItems: any[] = []
+  // Hero: prefer the LIVE curated carousel from /f/v1/home (HeroMediaCard, includes logos).
+  let heroCards: any[] = []
   try {
-    const tags: any = await crFetch(`${CR.API}/content/v2/discover/seasonal_tags?locale=${locale}`, { bearer: token })
-    const tag = tags?.data?.[0]?.id
-    if (tag) {
-      const browse: any = await crFetch(
-        `${CR.API}/content/v1/browse?season_tag=${tag}&sort_by=popularity&n=12&locale=${locale}`,
-        { bearer: token }
-      )
-      heroItems = browse?.items ?? browse?.data ?? []
-    }
+    const tree: any = await crFetch(`https://www.crunchyroll.com/f/v1/home?locale=${locale}`, { bearer: token })
+    heroCards = extractHeroCards(tree)
   } catch {
-    /* keep the shell even if the hero fetch fails */
+    /* fall back below */
   }
 
-  return { feed, heroItems, rows }
+  // Fallback (only if the fragment hero is unavailable): current-season popular simulcasts.
+  let heroItems: any[] = []
+  if (heroCards.length === 0) {
+    try {
+      const tags: any = await crFetch(`${CR.API}/content/v2/discover/seasonal_tags?locale=${locale}`, { bearer: token })
+      const tag = tags?.data?.[0]?.id
+      if (tag) {
+        const browse: any = await crFetch(
+          `${CR.API}/content/v1/browse?season_tag=${tag}&sort_by=popularity&n=12&locale=${locale}`,
+          { bearer: token }
+        )
+        heroItems = browse?.items ?? browse?.data ?? []
+      }
+    } catch {
+      /* keep the shell even if the hero fetch fails */
+    }
+  }
+
+  return { feed, heroCards, heroItems, rows }
 }
 
 /** Fetches one row's items on demand (dynamic_collection -> link, else cms/objects by ids). */

@@ -12,7 +12,9 @@ interface CrBridge {
   api: {
     home(
       locale?: string
-    ): Promise<CrResult<{ feed: any; heroItems: any[]; rows: { title: string; link?: string; ids?: string[] }[] }>>
+    ): Promise<
+      CrResult<{ feed: any; heroCards: any[]; heroItems: any[]; rows: { title: string; link?: string; ids?: string[] }[] }>
+    >
     row(desc: { title: string; link?: string; ids?: string[] }, locale?: string): Promise<CrResult<any[]>>
   }
   device: {

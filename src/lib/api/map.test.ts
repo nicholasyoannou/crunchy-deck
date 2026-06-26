@@ -80,14 +80,24 @@ describe('mapBanners', () => {
     expect(banners[0].background).toBe('op.jpg')
   })
 
-  it('prefers current-season simulcast heroItems over the feed carousel', () => {
+  it('prefers live /f/v1/home hero cards (with logo) over everything else', () => {
+    const cards = [
+      { contentId: 'GRMG', title: 'One Piece', description: 'pirates', wideImage: '/CurationAssets/op-wide.png', logoImage: '/CurationAssets/op-logo.png' }
+    ]
+    const banners = mapBanners({ data: [] }, cards, [])
+    expect(banners[0].title).toBe('One Piece')
+    expect(banners[0].background).toContain('/CurationAssets/op-wide.png')
+    expect(banners[0].logo).toContain('/CurationAssets/op-logo.png')
+  })
+
+  it('falls back to current-season simulcast heroItems when no fragment cards', () => {
     const series = {
       id: 'WIS',
       title: 'Wistoria',
       description: 'mages',
       images: { poster_wide: [[{ source: 'wlo.jpg' }, { source: 'whi.jpg' }]] }
     }
-    const banners = mapBanners({ data: [] }, [series])
+    const banners = mapBanners({ data: [] }, [], [series])
     expect(banners.map((b) => b.title)).toEqual(['Wistoria'])
     expect(banners[0].background).toBe('whi.jpg') // biggest variant
   })

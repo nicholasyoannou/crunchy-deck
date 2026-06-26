@@ -58,11 +58,36 @@ function mapHeroItem(item: any): CrBanner | null {
   }
 }
 
-/** Preferred hero: current-season simulcasts; fall back to feed hero_carousel, then a promo panel. */
-export function mapBanners(feed: any, heroItems: any[] = []): CrBanner[] {
-  let banners: CrBanner[] = Array.isArray(heroItems)
-    ? heroItems.map(mapSeriesBanner).filter((b: CrBanner | null): b is CrBanner => !!b)
+const CURATION = 'https://imgsrv.crunchyroll.com/cdn-cgi/image/format=auto'
+function curationUrl(path?: string, w?: number): string | undefined {
+  if (!path) return undefined
+  return `${CURATION}${w ? `,width=${w}` : ''}${path}`
+}
+
+// A /f/v1/home HeroMediaCard -> banner (live curated hero, WITH transparent logo art).
+function mapFragmentCard(c: any): CrBanner | null {
+  if (!c) return null
+  const bg = curationUrl(c.wideImage, 1920) ?? curationUrl(c.tallImage, 1200)
+  if (!bg) return null
+  return {
+    id: c.contentId ?? c.title ?? '',
+    title: c.title ?? '',
+    description: c.description ?? '',
+    background: bg,
+    logo: curationUrl(c.logoImage, 600)
+  }
+}
+
+/** Preferred hero: live curated /f/v1/home cards (with logos); then current-season simulcasts; then feed carousel/panel. */
+export function mapBanners(feed: any, heroCards: any[] = [], heroItems: any[] = []): CrBanner[] {
+  let banners: CrBanner[] = Array.isArray(heroCards)
+    ? heroCards.map(mapFragmentCard).filter((b: CrBanner | null): b is CrBanner => !!b)
     : []
+  if (banners.length === 0) {
+    banners = Array.isArray(heroItems)
+      ? heroItems.map(mapSeriesBanner).filter((b: CrBanner | null): b is CrBanner => !!b)
+      : []
+  }
   if (banners.length === 0) {
     const panels: any[] = feed?.data ?? []
     const hero = panels.find((p) => p?.resource_type === 'hero_carousel')
