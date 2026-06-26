@@ -9,5 +9,9 @@ contextBridge.exposeInMainWorld('cr', {
   },
   api: {
     home: (locale = 'en-US') => ipcRenderer.invoke('api:home', { locale })
+  },
+  device: {
+    code: () => ipcRenderer.invoke('device:code'),
+    poll: (device_code: string) => ipcRenderer.invoke('device:poll', { device_code })
   }
 })

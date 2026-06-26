@@ -38,7 +38,7 @@ function loadPersisted(): Persisted | null {
   }
 }
 
-function applyToken(json: any) {
+export function adoptToken(json: any) {
   state = {
     access_token: json.access_token,
     refresh_token: json.refresh_token,
@@ -54,7 +54,7 @@ async function refresh(refresh_token: string) {
     clientAuth: true,
     form: { refresh_token, grant_type: 'refresh_token', scope: 'offline_access' }
   })
-  applyToken(json)
+  adoptToken(json)
 }
 
 export async function login(username: string, password: string) {
@@ -62,7 +62,7 @@ export async function login(username: string, password: string) {
     clientAuth: true,
     form: { username, password, grant_type: 'password', scope: 'offline_access' }
   })
-  applyToken(json)
+  adoptToken(json)
   return { authenticated: true, account_id: state!.account_id, country: state!.country }
 }
 
