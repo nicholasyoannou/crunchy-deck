@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('cr', {
   version: process.versions.electron,
+  log: (m: string) => ipcRenderer.send('cr:log', m),
   auth: {
     login: (username: string, password: string) => ipcRenderer.invoke('auth:login', { username, password }),
     logout: () => ipcRenderer.invoke('auth:logout'),
