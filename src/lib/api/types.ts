@@ -62,3 +62,11 @@ export interface CrSeriesInfo {
   description: string
   background: string
 }
+
+export type CrUpNext = {
+  id: string
+  seasonNumber: number
+  episodeNumber: number
+  playhead: number // resume point, seconds
+  fullyWatched: boolean
+} | null
