@@ -19,6 +19,22 @@
     const onSearch = () => goto('/search')
     window.addEventListener('cr:search', onSearch)
 
+    // Steam Deck OSK bug: one key press commits a printable char TWICE (a 2nd insertion with no
+    // keydown), so typing "i" yields "ii". Drop an identical insert that repeats within 50ms — far
+    // faster than a human could re-press the same key, so a real double like "ll" still types.
+    let lastInsert = { data: '', el: null as EventTarget | null, t: 0 }
+    const onBeforeInput = (e: InputEvent) => {
+      if (!e.inputType?.startsWith('insert') || !e.data) return
+      const t = performance.now()
+      if (e.data === lastInsert.data && e.target === lastInsert.el && t - lastInsert.t < 50) {
+        e.preventDefault() // swallow the OSK's duplicate
+        window.cr?.log(`[dedup] dropped "${e.data}"`)
+        return
+      }
+      lastInsert = { data: e.data, el: e.target, t }
+    }
+    window.addEventListener('beforeinput', onBeforeInput, true)
+
     const onKey = (e: KeyboardEvent) => {
       const a = document.activeElement
       const typing = !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')
@@ -40,6 +56,7 @@
       clearInterval(id)
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('cr:search', onSearch)
+      window.removeEventListener('beforeinput', onBeforeInput, true)
     }
   })
 </script>
