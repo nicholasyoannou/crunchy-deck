@@ -56,3 +56,8 @@ body {
 * {
   scrollbar-width: none;
 }
+
+/* TV/console app — never show a mouse cursor (touchscreen + controller still work) */
+* {
+  cursor: none !important;
+}

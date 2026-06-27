@@ -6,6 +6,7 @@ interface CrBridge {
   version: string
   steam: boolean // launched through Steam (Steam OSK available) vs bare (use in-app keyboard)
   log(m: string): void
+  quit(): void // force-exit the app (full teardown; graceful quit hangs under gamescope)
   auth: {
     login(username: string, password: string): Promise<CrResult<{ authenticated: boolean; account_id?: string; country?: string }>>
     logout(): Promise<CrResult<void>>

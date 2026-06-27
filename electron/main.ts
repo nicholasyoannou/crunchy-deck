@@ -1,4 +1,4 @@
-import { app, BrowserWindow, components, session } from 'electron'
+import { app, BrowserWindow, components, session, ipcMain } from 'electron'
 import path from 'node:path'
 import http from 'node:http'
 import { readFileSync, existsSync, appendFileSync } from 'node:fs'
@@ -221,6 +221,11 @@ app.whenReady().then(async () => {
   })
 })
 
+// Renderer "Quit" -> force a full, immediate teardown of every child process.
+ipcMain.on('app:quit', () => app.exit(0))
+
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  // app.exit(0), NOT app.quit(): a graceful quit hangs under gamescope (the GPU/CDM child doesn't
+  // drain), leaving a lingering instance that makes Steam's next launch hang forever. Force-exit.
+  if (process.platform !== 'darwin') app.exit(0)
 })

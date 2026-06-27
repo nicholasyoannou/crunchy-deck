@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('cr', {
   version: process.versions.electron,
   steam: launchedViaSteam,
   log: (m: string) => ipcRenderer.send('cr:log', m),
+  quit: () => ipcRenderer.send('app:quit'),
   auth: {
     login: (username: string, password: string) => ipcRenderer.invoke('auth:login', { username, password }),
     logout: () => ipcRenderer.invoke('auth:logout'),

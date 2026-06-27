@@ -3,7 +3,10 @@
 
   function quit() {
     closeExit()
-    window.close() // Electron closes the BrowserWindow (and the app on the Deck)
+    // Direct IPC -> app.exit(0) in main: a full, immediate teardown. window.close() (graceful) can
+    // hang under gamescope and leave a lingering instance that blocks Steam's next launch.
+    if (window.cr?.quit) window.cr.quit()
+    else window.close()
   }
 
   // Default focus to the non-destructive choice; restore page focus on close.
