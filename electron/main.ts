@@ -1,12 +1,17 @@
 import { app, BrowserWindow, components, session, ipcMain } from 'electron'
 import path from 'node:path'
 import http from 'node:http'
-import { readFileSync, existsSync, appendFileSync, readdirSync } from 'node:fs'
+import { readFileSync, existsSync, appendFileSync } from 'node:fs'
 import { registerIpc } from './ipc.js'
 import { initUpdater } from './updater.js'
+import { killTreeAndExit } from './lifecycle.js'
 import { CR } from './cr/client.js'
 
 const isDev = !!process.env.ELECTRON_RENDERER_URL
+
+// Boot timing — surfaces where launch time goes (Steam reports ~1min sometimes). T0 ≈ main start.
+const T0 = Date.now()
+const boot = (stage: string) => console.log(`[boot] ${stage} +${Date.now() - T0}ms`)
 
 // Steam Deck GAMING MODE runs under gamescope (a nested Wayland compositor). Electron's default GPU
 // backend (ANGLE/Vulkan) frequently fails to PRESENT frames there -> a blank/black window, even though
@@ -174,6 +179,7 @@ function createWindow(loadUrl: string) {
   // Scale the UI up for the Deck panel. Pin the zoom on every load so SPA reloads / HMR can't
   // reset it, and clamp pinch-zoom so the layout can't drift off this baseline.
   win.webContents.on('did-finish-load', () => {
+    boot('did-finish-load')
     win.webContents.setVisualZoomLevelLimits(1, 1)
     win.webContents.setZoomFactor(UI_SCALE)
   })
@@ -183,6 +189,7 @@ function createWindow(loadUrl: string) {
 
 app.whenReady().then(async () => {
   installFileLogger()
+  boot('app-ready')
   // Diagnostics: session/compositor + GPU backend, so a blank Gaming-Mode window is debuggable from app.log.
   const e = process.env
   console.log(
@@ -208,7 +215,9 @@ app.whenReady().then(async () => {
   const url = isDev
     ? process.env.ELECTRON_RENDERER_URL!
     : `http://127.0.0.1:${await serveStatic(path.join(__dirname, '../build'))}/`
+  boot('served')
   let win = createWindow(url)
+  boot('window-created')
   initUpdater(win) // self-update from GitHub Releases (packaged AppImage only)
   // Widevine CDM loads in the background; only playback needs it, so it must not
   // block first paint (this is what lets the logo animation mask boot time).
@@ -220,46 +229,6 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) win = createWindow(url)
   })
 })
-
-// Steam's reaper waits for the ENTIRE process tree. Electron's GPU/zygote children can outlive the
-// main process (esp. under gamescope), keeping the reaper — and Steam's "running" state — alive, so
-// the next launch hangs forever and the stale signed-in instance races the refresh token. app.quit()
-// and even app.exit(0) leave those children; explicitly SIGKILL every descendant first, then exit.
-function killTreeAndExit() {
-  try {
-    const childrenOf = new Map<number, number[]>()
-    for (const d of readdirSync('/proc')) {
-      if (!/^\d+$/.test(d)) continue
-      try {
-        const stat = readFileSync(`/proc/${d}/stat`, 'utf8')
-        const ppid = Number(stat.slice(stat.lastIndexOf(')') + 1).trim().split(/\s+/)[1]) // [0]=state,[1]=ppid
-        const arr = childrenOf.get(ppid) ?? []
-        arr.push(Number(d))
-        childrenOf.set(ppid, arr)
-      } catch {
-        /* pid vanished mid-scan */
-      }
-    }
-    const doomed: number[] = []
-    const walk = (root: number) => {
-      for (const c of childrenOf.get(root) ?? []) {
-        doomed.push(c)
-        walk(c)
-      }
-    }
-    walk(process.pid)
-    for (const pid of doomed) {
-      try {
-        process.kill(pid, 'SIGKILL')
-      } catch {
-        /* already gone */
-      }
-    }
-  } catch {
-    /* /proc unavailable (non-Linux) */
-  }
-  app.exit(0)
-}
 
 ipcMain.on('app:quit', killTreeAndExit)
 app.on('window-all-closed', () => {

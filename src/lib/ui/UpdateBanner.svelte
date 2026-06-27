@@ -61,14 +61,14 @@
       </div>
     {:else}
       <p class="mb-1 font-bold text-white">Update ready</p>
-      <p class="mb-3 text-sm text-white/60">Restart to finish updating to {version}.</p>
+      <p class="mb-3 text-sm text-white/60">Quit to apply {version}, then relaunch from Steam.</p>
       <button
         id="upd-restart"
         data-focusable
         data-focus-self
         onclick={restart}
         class="rounded bg-brand px-4 py-2 text-sm font-bold text-black outline-none select:ring-4 select:ring-white/40"
-      >Restart now</button>
+      >Quit &amp; apply</button>
     {/if}
   </div>
 {/if}
