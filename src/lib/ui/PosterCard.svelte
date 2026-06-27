@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
   import type { CrItem } from '$lib/api/types'
+  import { setHint } from '$lib/api/seriesHint'
 
   let { uid, item }: { uid: string; item: CrItem } = $props()
 
@@ -27,7 +28,10 @@
   data-focusable
   data-focus-self
   title={item.title}
-  onclick={() => goto(`/series/${item.id}`)}
+  onclick={() => {
+    setHint({ id: item.id, title: item.title, poster: item.poster ?? item.background, isPremium: !!item.isPremium })
+    goto(`/series/${item.id}`)
+  }}
   class={`group relative shrink-0 origin-bottom overflow-hidden rounded-card bg-surface-2 outline-none transition-[transform,box-shadow] duration-150 ease-out select:-translate-y-[7px] select:scale-105 select:shadow-[0_0_0_3px_#F47521,0_14px_34px_rgba(0,0,0,0.65)] ${size}`}
 >
   <img src={img} alt={item.title} loading="lazy" class="h-full w-full object-cover" />
