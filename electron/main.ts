@@ -1,7 +1,7 @@
 import { app, BrowserWindow, components, session, ipcMain } from 'electron'
 import path from 'node:path'
 import http from 'node:http'
-import { readFileSync, existsSync, appendFileSync } from 'node:fs'
+import { readFileSync, existsSync, appendFileSync, readdirSync } from 'node:fs'
 import { registerIpc } from './ipc.js'
 import { initUpdater } from './updater.js'
 import { CR } from './cr/client.js'
@@ -221,11 +221,47 @@ app.whenReady().then(async () => {
   })
 })
 
-// Renderer "Quit" -> force a full, immediate teardown of every child process.
-ipcMain.on('app:quit', () => app.exit(0))
+// Steam's reaper waits for the ENTIRE process tree. Electron's GPU/zygote children can outlive the
+// main process (esp. under gamescope), keeping the reaper — and Steam's "running" state — alive, so
+// the next launch hangs forever and the stale signed-in instance races the refresh token. app.quit()
+// and even app.exit(0) leave those children; explicitly SIGKILL every descendant first, then exit.
+function killTreeAndExit() {
+  try {
+    const childrenOf = new Map<number, number[]>()
+    for (const d of readdirSync('/proc')) {
+      if (!/^\d+$/.test(d)) continue
+      try {
+        const stat = readFileSync(`/proc/${d}/stat`, 'utf8')
+        const ppid = Number(stat.slice(stat.lastIndexOf(')') + 1).trim().split(/\s+/)[1]) // [0]=state,[1]=ppid
+        const arr = childrenOf.get(ppid) ?? []
+        arr.push(Number(d))
+        childrenOf.set(ppid, arr)
+      } catch {
+        /* pid vanished mid-scan */
+      }
+    }
+    const doomed: number[] = []
+    const walk = (root: number) => {
+      for (const c of childrenOf.get(root) ?? []) {
+        doomed.push(c)
+        walk(c)
+      }
+    }
+    walk(process.pid)
+    for (const pid of doomed) {
+      try {
+        process.kill(pid, 'SIGKILL')
+      } catch {
+        /* already gone */
+      }
+    }
+  } catch {
+    /* /proc unavailable (non-Linux) */
+  }
+  app.exit(0)
+}
 
+ipcMain.on('app:quit', killTreeAndExit)
 app.on('window-all-closed', () => {
-  // app.exit(0), NOT app.quit(): a graceful quit hangs under gamescope (the GPU/CDM child doesn't
-  // drain), leaving a lingering instance that makes Steam's next launch hang forever. Force-exit.
-  if (process.platform !== 'darwin') app.exit(0)
+  if (process.platform !== 'darwin') killTreeAndExit()
 })
