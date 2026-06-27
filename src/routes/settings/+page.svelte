@@ -2,6 +2,14 @@
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
   import { clearHome } from '$lib/api/homeStore'
+  import { getSkipSeconds, setSkipSeconds, SKIP_OPTIONS } from '$lib/playback/skip'
+
+  // --- playback: L1/R1 skip interval ---
+  let skip = $state(3)
+  function chooseSkip(n: number) {
+    skip = n
+    setSkipSeconds(n)
+  }
 
   let account = $state<{ account_id?: string; country?: string } | null>(null)
   let phase = $state<'loading' | 'ready' | 'error'>('loading')
@@ -63,6 +71,7 @@
     }
     account = { account_id: s.data.account_id, country: s.data.country }
     phase = 'ready'
+    skip = getSkipSeconds()
     upd = await window.cr.update.getState()
     window.cr.update.onState((st) => (upd = st))
     requestAnimationFrame(() =>
@@ -82,6 +91,25 @@
         <div class="rounded-card bg-surface-1 p-4 text-sm text-white/70">
           <div>Region: <span class="text-white">{account?.country ?? '—'}</span></div>
           <div class="mt-1 break-all">ID: <span class="text-white/50">{account?.account_id ?? '—'}</span></div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="mb-2 text-xs font-bold uppercase tracking-wide text-white/40">Playback</h2>
+        <div class="rounded-card bg-surface-1 p-4 text-sm">
+          <div class="mb-2.5 text-white/70">Skip interval <span class="text-white/40">(L1 / R1)</span></div>
+          <div class="flex flex-wrap gap-2">
+            {#each SKIP_OPTIONS as n, i}
+              <button
+                id={`skip-${i}`}
+                data-focusable
+                onclick={() => chooseSkip(n)}
+                class="rounded px-3 py-2 font-bold outline-none transition select:ring-2 select:ring-brand {skip === n
+                  ? 'bg-brand text-black'
+                  : 'bg-surface-2 text-white/80'}">{n}s</button
+              >
+            {/each}
+          </div>
         </div>
       </section>
 

@@ -97,7 +97,9 @@
   function showOverlay() {
     overlay = true
     if (overlayTimer) clearTimeout(overlayTimer)
-    if (menu === 'none' && !paused) overlayTimer = setTimeout(() => (overlay = false), 3500)
+    // use the LIVE video state (the reactive `paused` lags a tick behind a tap, which left the
+    // controls stuck on screen after unpausing); only auto-hide while actually playing.
+    if (menu === 'none' && video && !video.paused) overlayTimer = setTimeout(() => (overlay = false), 3500)
   }
 
   // ---- transport ---------------------------------------------------------
@@ -517,7 +519,10 @@
         /* ignore */
       }
     }}
-    onplay={() => (paused = false)}
+    onplay={() => {
+      paused = false
+      showOverlay() // restart the auto-hide timer once playback actually resumes
+    }}
     onpause={() => {
       paused = true
       syncProgress()
@@ -610,6 +615,7 @@
           id="pl-seek"
           bind:this={bar}
           data-focusable
+          data-focus-self
           data-player-seek
           data-up="#pl-back"
           data-down="#pl-play"
@@ -647,8 +653,15 @@
           data-left={navL('pl-play')}
           data-right={navR('pl-play')}
           onclick={togglePlay}
-          class="grid h-12 w-12 place-items-center rounded-full text-2xl text-white outline-none transition select:bg-brand select:text-black"
-          aria-label={paused ? 'Play' : 'Pause'}>{paused ? '▶' : '⏸'}</button
+          class="grid h-12 w-12 place-items-center rounded-full text-white outline-none transition select:bg-brand select:text-black"
+          aria-label={paused ? 'Play' : 'Pause'}
+        >
+          {#if paused}
+            <svg viewBox="0 0 24 24" fill="currentColor" class="h-6 w-6"><path d="M8 5v14l11-7z" /></svg>
+          {:else}
+            <svg viewBox="0 0 24 24" fill="currentColor" class="h-6 w-6"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+          {/if}
+        </button
         >
         <button
           id="pl-back10"

@@ -34,8 +34,8 @@
     banners = r.banners
     rows = r.rows
     phase = 'ready'
-    // start at the top: focus the hero's Play button, never a random row card below it
-    requestAnimationFrame(() => document.getElementById('hero-play')?.focus({ preventScroll: true }))
+    // Leave focus on nothing so the hero carousel auto-advances. The first D-pad press resolves by
+    // intent (commands.ts homeIntent): up -> hero, down -> Continue Watching, left -> menu.
   })
 </script>
 

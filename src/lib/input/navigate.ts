@@ -57,6 +57,9 @@ export function moveFocus(direction: Direction): boolean {
 
 // never-null guard: call from an interval/rAF in the app shell
 export function ensureFocus() {
+  // Home intentionally starts with nothing focused (so the hero carousel auto-advances); the first
+  // D-pad press resolves focus by intent (commands.ts homeIntent), so don't grab it back here.
+  if (location.pathname === '/home') return
   const a = document.activeElement
   if (!a || a === document.body) {
     firstFocusable()?.focus()
