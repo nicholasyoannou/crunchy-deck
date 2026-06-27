@@ -29,7 +29,7 @@
         onclick={() => onplay(ep.id, ep.watched ? 0 : (ep.playhead ?? 0))}
         class="group text-left outline-none"
       >
-        <div class="relative aspect-video overflow-hidden rounded-card bg-surface-2 transition group-select:ring-2 group-select:ring-brand">
+        <div class="relative aspect-video overflow-hidden rounded-card bg-surface-2 transition group-select:shadow-[0_0_0_2px_#F47521]">
           <img
             src={ep.background}
             alt={ep.title}
