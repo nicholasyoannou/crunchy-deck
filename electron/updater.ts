@@ -42,8 +42,9 @@ function pushState() {
   if (win && !win.isDestroyed()) win.webContents.send('update:state', snapshot())
 }
 function applyChannel() {
-  // Stable -> latest*.yml (full releases). Dev -> dev*.yml (prereleases).
-  autoUpdater.channel = state.channel === 'dev' ? 'dev' : 'latest'
+  // Both channels read latest*.yml; "dev" simply also considers GitHub *prereleases* (dev builds are
+  // published with the prerelease flag), so stable users never see them.
+  autoUpdater.channel = 'latest'
   autoUpdater.allowPrerelease = state.channel === 'dev'
 }
 
