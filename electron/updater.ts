@@ -89,7 +89,12 @@ export function initUpdater(window: BrowserWindow) {
   autoUpdater.on('error', (e) => console.error('[update] error', String((e as any)?.message ?? e).slice(0, 200)))
 
   ipcMain.handle('update:download', () => autoUpdater.downloadUpdate())
-  ipcMain.handle('update:install', () => autoUpdater.quitAndInstall())
+  ipcMain.handle('update:install', () => {
+    // Drop window-all-closed (which would app.quit() before the updater can relaunch), then force the
+    // freshly-installed AppImage to start after quitting (isForceRunAfter=true).
+    app.removeAllListeners('window-all-closed')
+    setImmediate(() => autoUpdater.quitAndInstall(false, true))
+  })
   ipcMain.handle('update:check', () => doCheck())
   ipcMain.handle('update:getState', () => snapshot())
   ipcMain.handle('update:setChannel', (_e, channel: Channel) => {

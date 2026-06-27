@@ -45,6 +45,7 @@
   "build": {
     "appId": "app.crunchydeck",
     "productName": "Crunchy Deck",
+    "artifactName": "${name}.${ext}",
     "publish": [
       {
         "provider": "github",
