@@ -49,7 +49,9 @@ contextBridge.exposeInMainWorld('cr', {
   player: {
     stream: (id: string) => ipcRenderer.invoke('api:stream', { id }),
     release: (contentId: string, videoToken: string) => ipcRenderer.invoke('api:streamRelease', { contentId, videoToken }),
-    setPlayhead: (contentId: string, playhead: number) => ipcRenderer.invoke('api:playhead', { contentId, playhead })
+    setPlayhead: (contentId: string, playhead: number) => ipcRenderer.invoke('api:playhead', { contentId, playhead }),
+    markers: (id: string) => ipcRenderer.invoke('api:skipMarkers', { id }),
+    nextEpisode: (id: string, locale = 'en-US') => ipcRenderer.invoke('api:nextEpisode', { id, locale })
   },
   update: {
     onAvailable: (cb: (d: { version: string }) => void) => ipcRenderer.on('update:available', (_e, d) => cb(d)),

@@ -9,6 +9,7 @@ import { loadCategories } from './cr/categories.js'
 import { loadSeasons } from './cr/seasons.js'
 import { loadHistory } from './cr/history.js'
 import { resolveStream, releaseStream, setPlayhead } from './cr/stream.js'
+import { skipMarkers, nextEpisode } from './cr/markers.js'
 import { requestDeviceCode, pollDeviceToken } from './cr/device.js'
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string; authExpired?: boolean }
@@ -47,6 +48,8 @@ export function registerIpc() {
   ipcMain.handle('api:stream', (_e, { id }: { id: string }) => wrap(() => resolveStream(id)))
   ipcMain.handle('api:streamRelease', (_e, { contentId, videoToken }: { contentId: string; videoToken: string }) => wrap(() => releaseStream(contentId, videoToken)))
   ipcMain.handle('api:playhead', (_e, { contentId, playhead }: { contentId: string; playhead: number }) => wrap(() => setPlayhead(contentId, playhead)))
+  ipcMain.handle('api:skipMarkers', (_e, { id }: { id: string }) => wrap(() => skipMarkers(id)))
+  ipcMain.handle('api:nextEpisode', (_e, { id, locale }: { id: string; locale?: string }) => wrap(() => nextEpisode(id, locale)))
   ipcMain.handle('device:code', () => wrap(() => requestDeviceCode()))
   ipcMain.handle('device:poll', (_e, { device_code }: { device_code: string }) => wrap(() => pollDeviceToken(device_code)))
 }

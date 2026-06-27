@@ -93,6 +93,10 @@ interface CrBridge {
     >
     release(contentId: string, videoToken: string): Promise<CrResult<void>>
     setPlayhead(contentId: string, playhead: number): Promise<CrResult<void>>
+    markers(
+      id: string
+    ): Promise<CrResult<{ intro: SkipBlock | null; credits: SkipBlock | null; recap: SkipBlock | null; preview: SkipBlock | null }>>
+    nextEpisode(id: string, locale?: string): Promise<CrResult<NextEpisode | null>>
   }
   update: {
     onAvailable(cb: (d: { version: string }) => void): void
@@ -119,6 +123,17 @@ declare global {
     lastUpdated: { version: string; at: number } | null
     currentVersion: string
     packaged: boolean
+  }
+  type SkipBlock = { start: number; end: number; type?: string }
+  type NextEpisode = {
+    id: string
+    title: string
+    seriesTitle: string
+    seasonNumber: number | null
+    episodeNumber: number | null
+    durationMs: number | null
+    description: string
+    thumbnail: string | null
   }
 }
 

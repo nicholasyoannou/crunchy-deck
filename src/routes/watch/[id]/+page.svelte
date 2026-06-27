@@ -59,6 +59,20 @@
   let curQuality: number | 'auto' = $state('auto')
   let releaseTimer: ReturnType<typeof setTimeout> | null = null
 
+  // in-flight seek: hold the scrubber at the chosen position until the video reports 'seeked'
+  let seeking = $state(false)
+  let seekTarget = $state(0)
+
+  // skip-intro / next-episode (markers in seconds; next = the following episode or null)
+  let markers = $state<{ intro: SkipBlock | null; credits: SkipBlock | null; recap: SkipBlock | null; preview: SkipBlock | null } | null>(null)
+  let next = $state<NextEpisode | null>(null)
+  let skipShown = false
+  let nextShown = false
+
+  // route-driven episode loading (so "Next episode" + Back re-load without a remount)
+  let ready = $state(false)
+  let loadedId = ''
+
   const LICENSE = 'https://cr-license-proxy.prd.crunchyrollsvc.com/v1/license/widevine'
   const CERT =
     'CrsCCAMSEKDc0WAwLAQT1SB2ogyBJEwYv4Tx7gUijgIwggEKAoIBAQC8Xc/GTRwZDtlnBThq8V382D1oJAM0F/YgCQtNDLz7vTWJ+QskNGi5Dd2qzO4s48Cnx5BLvL4H0xCRSw2Ed6ekHSdrRUwyoYOE+M/t1oIbccwlTQ7o+BpV1X6TB7fxFyx1jsBtRsBWphU65w121zqmSiwzZzJ4xsXVQCJpQnNI61gzHO42XZOMuxytMm0F6puNHTTqhyY3Z290YqvSDdOB+UY5QJuXJgjhvOUD9+oaLlvT+vwmV2/NJWxKqHBKdL9JqvOnNiQUF0hDI7Wf8Wb63RYSXKE27Ky31hKgx1wuq7TTWkA+kHnJTUrTEfQxfPR4dJTquE+IDLAi5yeVVxzbAgMBAAE6DGNhc3RsYWJzLmNvbUABEoADMmGXpXg/0qxUuwokpsqVIHZrJfu62ar+BF8UVUKdK5oYQoiTZd9OzK3kr29kqGGk3lSgM0/p499p/FUL8oHHzgsJ7Hajdsyzn0Vs3+VysAgaJAkXZ+k+N6Ka0WBiZlCtcunVJDiHQbz1sF9GvcePUUi2fM/h7hyskG5ZLAyJMzTvgnV3D8/I5Y6mCFBPb/+/Ri+9bEvquPF3Ff9ip3yEHu9mcQeEYCeGe9zR/27eI5MATX39gYtCnn7dDXVxo4/rCYK0A4VemC3HRai2X3pSGcsKY7+6we7h4IycjqtuGtYg8AbaigovcoURAZcr1d/G0rpREjLdVLG0Gjqk63Gx688W5gh3TKemsK3R1jV0dOfj3e6uV/kTpsNRL9KsD0v7ysBQVdUXEbJotcFz71tI5qc3jwr6GjYIPA3VzusD17PN6AGQniMwxJV12z/EgnUopcFB13osydpD2AaDsgWo5RWJcNf+fzCgtUQx/0Au9+xVm5LQBdv8Ja4f2oiHN3dw'
@@ -103,7 +117,14 @@
     seekTimer = setTimeout(commitSeek, 280) // one real seek after the burst of skips settles
   }
   function commitSeek() {
-    if (video) video.currentTime = scrubTime
+    if (!video) {
+      scrubbing = false
+      return
+    }
+    // record the target + mark an in-flight seek so the thumb stays put while the region buffers
+    seekTarget = scrubTime
+    seeking = true
+    video.currentTime = scrubTime
     scrubbing = false
   }
   // pointer (touch/mouse) scrubbing on the bar
@@ -149,6 +170,11 @@
 
   // ---- track switching (audio + subs reload; quality is in-player) --------
   async function doLoad(guid: string, sub: string, atTime: number, initial: boolean) {
+    if (initial && s) releaseNow() // free the previous episode's stream slot before opening a new one
+    if (initial) {
+      markers = null
+      next = null
+    }
     buffering = true
     const res = await window.cr.player.stream(guid)
     if (!res.ok) {
@@ -177,7 +203,14 @@
     scheduleRelease()
     status = 'playing'
     buffering = false
-    if (initial) playRatingIntro()
+    if (initial) {
+      // skip markers + next episode for this episode (non-blocking; missing = none)
+      Promise.all([window.cr.player.markers(guid), window.cr.player.nextEpisode(guid)]).then(([mk, nx]) => {
+        if (mk.ok) markers = mk.data
+        if (nx.ok) next = nx.data
+      })
+      playRatingIntro()
+    }
     showOverlay()
     if (initial) focusEl('pl-play') // start on Play, not the back button
     try {
@@ -233,6 +266,25 @@
 
   const subLocales = $derived(s ? Object.keys(s.hardSubs) : [])
   const ratingText = $derived(s?.meta.maturityRating ?? '')
+
+  // Deterministic Left/Right chain across the control row (audio/subs are conditional, so the cone
+  // can't be trusted across the wide gap). Each button reads its neighbour from this list.
+  const rowIds = $derived([
+    'pl-play',
+    'pl-back10',
+    'pl-fwd10',
+    ...(s && s.versions.length > 1 ? ['pl-audio'] : []),
+    ...(subLocales.length ? ['pl-subs'] : []),
+    'pl-quality'
+  ])
+  const navL = (id: string) => {
+    const i = rowIds.indexOf(id)
+    return i > 0 ? `#${rowIds[i - 1]}` : undefined
+  }
+  const navR = (id: string) => {
+    const i = rowIds.indexOf(id)
+    return i >= 0 && i < rowIds.length - 1 ? `#${rowIds[i + 1]}` : undefined
+  }
 
   // ---- token slot release (the play token is only needed for the license) -
   function scheduleRelease() {
@@ -315,11 +367,61 @@
       }
     })
 
-    const t = Number($page.url.searchParams.get('t') || 0)
-    await doLoad(routeId, 'off', t, true)
+    ready = true // the $effect below loads the current episode (and re-loads it on Next / Back)
     syncTimer = setInterval(() => {
       if (video && !video.paused) syncProgress()
     }, 30000)
+  })
+
+  // Load whenever the route's episode id changes — initial mount, "Next episode", and Back all flow here.
+  $effect(() => {
+    const id = routeId
+    if (!ready || !id || id === loadedId) return
+    loadedId = id
+    const t = Number($page.url.searchParams.get('t') || 0)
+    doLoad(id, 'off', t, true)
+  })
+
+  // ---- skip intro/recap + next episode -----------------------------------
+  const skipBlock = $derived(
+    markers?.intro && cur >= markers.intro.start && cur < markers.intro.end - 0.3
+      ? markers.intro
+      : markers?.recap && cur >= markers.recap.start && cur < markers.recap.end - 0.3
+        ? markers.recap
+        : null
+  )
+  const skipLabel = $derived(skipBlock?.type === 'recap' ? 'Skip Recap' : 'Skip Intro')
+  const showNext = $derived(
+    !!next &&
+      ((!!markers?.credits && cur >= markers.credits.start) || (!markers?.credits && dur > 0 && cur >= dur - 20))
+  )
+  function skipMarker() {
+    if (!video || !skipBlock) return
+    seekTarget = skipBlock.end
+    seeking = true
+    video.currentTime = skipBlock.end
+    showOverlay()
+    focusEl('pl-play')
+  }
+  async function playNext() {
+    if (!next) return
+    syncProgress()
+    goto(`/watch/${next.id}`, { replaceState: true }) // the $effect reloads; replace so Back skips the finished ep
+  }
+  // auto-focus the Skip / Next button when it first appears, so a controller user just presses A
+  $effect(() => {
+    if (!!skipBlock && !skipShown && menu === 'none') {
+      skipShown = true
+      focusEl('pl-skip')
+    }
+    if (!skipBlock) skipShown = false
+  })
+  $effect(() => {
+    if (showNext && !nextShown && menu === 'none') {
+      nextShown = true
+      focusEl('pl-next')
+    }
+    if (!showNext) nextShown = false
   })
 
   onDestroy(() => {
@@ -364,7 +466,9 @@
     }
   }
 
-  const progressPct = $derived(dur ? ((scrubbing ? scrubTime : cur) / dur) * 100 : 0)
+  // active drag > in-flight seek (held at target) > live playhead
+  const shownTime = $derived(scrubbing ? scrubTime : seeking ? seekTarget : cur)
+  const progressPct = $derived(dur ? (shownTime / dur) * 100 : 0)
   const bufferedPct = $derived(dur ? (buffered / dur) * 100 : 0)
   const epLine = $derived(
     s
@@ -382,10 +486,24 @@
   <video
     bind:this={video}
     class="h-full w-full"
-    onclick={togglePlay}
     ontimeupdate={() => {
+      // while a seek is in flight, ignore the stale playhead so the thumb doesn't snap back;
+      // release the hold once the playhead actually reaches the target (covers a missing 'seeked')
+      if (seeking) {
+        if (Math.abs(video.currentTime - seekTarget) < 0.5) seeking = false
+        else return
+      }
       cur = video.currentTime
       dur = video.duration || dur
+    }}
+    onseeking={() => {
+      seeking = true
+      buffering = true
+    }}
+    onseeked={() => {
+      seeking = false
+      buffering = false
+      cur = video.currentTime
     }}
     onprogress={() => {
       try {
@@ -408,18 +526,28 @@
     onplaying={() => (buffering = false)}
   ></video>
 
+  <!-- tap anywhere on the picture toggles play/pause + reveals controls (sits BELOW the chrome, so
+       only the actual buttons act; a tap on the empty top bar no longer triggers Back) -->
+  <button
+    type="button"
+    tabindex="-1"
+    aria-label={paused ? 'Play' : 'Pause'}
+    onclick={togglePlay}
+    class="absolute inset-0 z-0 h-full w-full cursor-default bg-transparent outline-none"
+  ></button>
+
   <!-- age-rating intro (fades in then out, like the CR TV app) -->
   {#if ratingText}
     <div
-      class="pointer-events-none absolute left-10 top-8 flex items-center gap-3 transition-opacity duration-700 ease-out"
+      class="pointer-events-none absolute right-10 top-8 z-10 flex items-center gap-3 transition-opacity duration-700 ease-out"
       style="opacity:{showRating ? 1 : 0}"
     >
-      <div class="grid h-12 min-w-12 place-items-center rounded-md border-2 border-white/80 px-2 text-2xl font-black text-white">
-        {ratingText}
-      </div>
-      <div class="text-sm text-white/70">
+      <div class="text-right text-sm text-white/70">
         <div class="font-semibold uppercase tracking-wide text-white/90">Rating</div>
         {#if s?.meta.descriptors?.length}<div>{s.meta.descriptors.join(' · ')}</div>{/if}
+      </div>
+      <div class="grid h-12 min-w-12 place-items-center rounded-md border-2 border-white/80 px-2 text-2xl font-black text-white">
+        {ratingText}
       </div>
     </div>
   {/if}
@@ -447,18 +575,18 @@
 
   <!-- top + bottom chrome (kept in the DOM so controller focus persists; just faded) -->
   <div
-    class="pointer-events-none absolute inset-0 flex flex-col justify-between transition-opacity duration-300"
+    class="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between transition-opacity duration-300"
     style="opacity:{overlay || menu !== 'none' ? 1 : 0}"
+    inert={menu !== 'none'}
   >
-    <!-- top bar -->
-    <div
-      class="flex items-start gap-4 bg-gradient-to-b from-black/80 to-transparent p-6 pb-12"
-      class:pointer-events-auto={overlay || menu !== 'none'}
-    >
+    <!-- top bar — only Back is interactive; taps on the empty bar pass through to the play toggle -->
+    <div class="flex items-start gap-4 bg-gradient-to-b from-black/80 to-transparent p-6 pb-12">
       <button
         id="pl-back"
         data-focusable
+        data-down="#pl-seek"
         onclick={back}
+        class:pointer-events-auto={overlay || menu !== 'none'}
         class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-black/40 text-xl text-white outline-none transition select:bg-brand select:text-black"
         aria-label="Back">‹</button
       >
@@ -477,17 +605,19 @@
     >
       <!-- scrub bar -->
       <div class="mb-3 flex items-center gap-3">
-        <span class="w-16 text-right font-mono text-xs text-white/80">{fmt(scrubbing ? scrubTime : cur)}</span>
+        <span class="w-16 text-right font-mono text-xs text-white/80">{fmt(shownTime)}</span>
         <div
           id="pl-seek"
           bind:this={bar}
           data-focusable
           data-player-seek
+          data-up="#pl-back"
+          data-down="#pl-play"
           role="slider"
           aria-label="Seek"
           aria-valuemin="0"
           aria-valuemax={Math.floor(dur)}
-          aria-valuenow={Math.floor(scrubbing ? scrubTime : cur)}
+          aria-valuenow={Math.floor(shownTime)}
           tabindex="0"
           onpointerdown={onBarDown}
           onpointermove={onBarMove}
@@ -513,6 +643,9 @@
           id="pl-play"
           data-focusable
           data-focus-self
+          data-up="#pl-seek"
+          data-left={navL('pl-play')}
+          data-right={navR('pl-play')}
           onclick={togglePlay}
           class="grid h-12 w-12 place-items-center rounded-full text-2xl text-white outline-none transition select:bg-brand select:text-black"
           aria-label={paused ? 'Play' : 'Pause'}>{paused ? '▶' : '⏸'}</button
@@ -520,6 +653,9 @@
         <button
           id="pl-back10"
           data-focusable
+          data-up="#pl-seek"
+          data-left={navL('pl-back10')}
+          data-right={navR('pl-back10')}
           onclick={() => skip(-10)}
           class="grid h-11 w-11 place-items-center rounded-full text-lg text-white/90 outline-none transition select:bg-white/20"
           aria-label="Back 10 seconds">⟲</button
@@ -527,6 +663,9 @@
         <button
           id="pl-fwd10"
           data-focusable
+          data-up="#pl-seek"
+          data-left={navL('pl-fwd10')}
+          data-right={navR('pl-fwd10')}
           onclick={() => skip(10)}
           class="grid h-11 w-11 place-items-center rounded-full text-lg text-white/90 outline-none transition select:bg-white/20"
           aria-label="Forward 10 seconds">⟳</button
@@ -538,6 +677,9 @@
           <button
             id="pl-audio"
             data-focusable
+            data-up="#pl-seek"
+            data-left={navL('pl-audio')}
+            data-right={navR('pl-audio')}
             onclick={() => openMenu('audio')}
             class="rounded-md px-3 py-2 text-sm font-semibold text-white/90 outline-none transition select:bg-white/20"
             >Audio</button
@@ -547,6 +689,9 @@
           <button
             id="pl-subs"
             data-focusable
+            data-up="#pl-seek"
+            data-left={navL('pl-subs')}
+            data-right={navR('pl-subs')}
             onclick={() => openMenu('subtitle')}
             class="rounded-md px-3 py-2 text-sm font-semibold text-white/90 outline-none transition select:bg-white/20"
             >Subtitles</button
@@ -555,6 +700,8 @@
         <button
           id="pl-quality"
           data-focusable
+          data-up="#pl-seek"
+          data-left={navL('pl-quality')}
           onclick={() => openMenu('quality')}
           class="grid h-11 w-11 place-items-center rounded-full text-xl text-white/90 outline-none transition select:bg-white/20"
           aria-label="Quality">⚙</button
@@ -562,6 +709,37 @@
       </div>
     </div>
   </div>
+
+  <!-- skip intro/recap — floating, appears during the marker even with the controls hidden -->
+  {#if skipBlock}
+    <button
+      id="pl-skip"
+      data-focusable
+      data-down="#pl-play"
+      onclick={skipMarker}
+      class="absolute bottom-28 right-8 z-30 rounded-md bg-white/90 px-5 py-2.5 text-sm font-black text-black shadow-lg outline-none transition select:bg-brand select:ring-4 select:ring-white/40"
+      >{skipLabel} ⟩⟩</button
+    >
+  {/if}
+
+  <!-- next episode — floating, appears at the credits / last 20s -->
+  {#if showNext && next}
+    <button
+      id="pl-next"
+      data-focusable
+      data-down="#pl-play"
+      onclick={playNext}
+      class="absolute bottom-28 right-8 z-30 flex items-center gap-3 rounded-lg bg-surface-1/95 p-3 pr-5 text-left shadow-2xl outline-none ring-1 ring-white/10 backdrop-blur transition select:ring-4 select:ring-brand"
+    >
+      {#if next.thumbnail}<img src={next.thumbnail} alt="" class="h-12 w-20 rounded object-cover" />{/if}
+      <div class="min-w-0">
+        <div class="text-xs font-semibold uppercase tracking-wide text-white/50">Next episode ⟩⟩</div>
+        <div class="line-clamp-1 text-sm font-bold text-white">
+          {#if next.episodeNumber}E{next.episodeNumber} · {/if}{next.title}
+        </div>
+      </div>
+    </button>
+  {/if}
 
   <!-- settings panel (audio / subtitles / quality) -->
   {#if menu !== 'none' && s}
