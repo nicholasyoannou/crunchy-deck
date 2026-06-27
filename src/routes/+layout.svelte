@@ -14,6 +14,13 @@
   let { children } = $props()
 
   onMount(() => {
+    // App is up — fade out the static boot splash (in app.html) and drop it.
+    const splash = document.getElementById('boot-splash')
+    if (splash) {
+      splash.style.opacity = '0'
+      setTimeout(() => splash.remove(), 450)
+    }
+
     const stop = startGamepadPoller()
     const stopDrag = startDragScroll() // touch/trackpad drag-to-scroll (gamescope delivers touch as mouse)
     const id = setInterval(ensureFocus, 500)
