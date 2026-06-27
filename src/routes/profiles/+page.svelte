@@ -53,6 +53,16 @@
       return
     }
     profiles = res.data ?? []
+    // single profile -> nothing to choose; switch to it and go straight home (keep the spinner, no flash)
+    if (profiles.length === 1) {
+      const sw = await window.cr.auth.switchProfile(profiles[0].profile_id)
+      if (sw.ok) {
+        clearHome()
+        prefetchHome()
+        goto('/home')
+        return
+      }
+    }
     // start on the account's currently-selected profile so its wallpaper shows first
     const sel = profiles.findIndex((p) => p.is_selected)
     activeIdx = sel >= 0 ? sel : 0
@@ -96,8 +106,8 @@
     </div>
   {:else}
     <div class="relative z-10 text-center">
-      <h1 class="mb-12 text-4xl font-black text-white/90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">Who's watching?</h1>
-      <div class="flex max-w-5xl flex-wrap items-start justify-center gap-8">
+      <h1 class="mb-10 text-3xl font-black text-white/90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">Who's watching?</h1>
+      <div class="flex max-w-4xl flex-wrap items-start justify-center gap-6">
         {#each profiles as p, i}
           <button
             id={`profile-${i}`}
@@ -107,15 +117,15 @@
             onclick={() => choose(p)}
             onfocus={() => (activeIdx = i)}
             onmouseenter={() => (activeIdx = i)}
-            class="group flex w-40 flex-col items-center gap-3 outline-none disabled:opacity-60"
+            class="group flex w-32 flex-col items-center gap-2 outline-none disabled:opacity-60"
           >
             <!-- CR avatars are themed square art — let them fill the tile (no blur/shrink). -->
             <div
-              class="relative h-40 w-40 overflow-hidden rounded-2xl bg-surface-2 opacity-80 ring-2 ring-white/10 transition duration-150 group-select:opacity-100 group-select:scale-105 group-select:ring-4 group-select:ring-brand"
+              class="relative h-32 w-32 overflow-hidden rounded-2xl bg-surface-2 opacity-80 ring-2 ring-white/10 transition duration-150 group-select:opacity-100 group-select:scale-105 group-select:ring-4 group-select:ring-brand"
             >
               <img src={AVATAR(p.avatar)} alt={label(p)} class="h-full w-full object-cover" />
             </div>
-            <span class="text-lg font-bold text-white/60 transition group-select:text-white">{label(p)}</span>
+            <span class="text-base font-bold text-white/60 transition group-select:text-white">{label(p)}</span>
           </button>
         {/each}
       </div>

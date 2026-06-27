@@ -82,6 +82,7 @@
 
   onMount(() => {
     raf = requestAnimationFrame(tick)
+    banners.forEach((b) => fetchDetail(b.id)) // warm every hero's detail up front so the meta never pops in
   })
   onDestroy(() => cancelAnimationFrame(raf))
 </script>
@@ -117,9 +118,10 @@
         <h1 class="mb-3 text-4xl font-black drop-shadow-lg">{banners[index].title}</h1>
       {/if}
 
-      <!-- rating ◆ Sub | Dub ◆ genres -->
-      {#if active}
-        <div class="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm drop-shadow">
+      <!-- rating ◆ Sub | Dub ◆ genres — keep the line reserved so it never shifts the layout when
+           the (pre-fetched) detail lands -->
+      <div class="mb-3 flex min-h-[1.75rem] flex-wrap items-center gap-x-2 gap-y-1 text-sm drop-shadow">
+        {#if active}
           {#if active.rating}
             <span class="rounded border border-white/45 px-1.5 py-0.5 text-xs font-bold text-white">{active.rating}</span>
           {/if}
@@ -130,8 +132,8 @@
             <span class="select-none text-[0.6rem] leading-none text-white/40">◆</span>
             <span class="text-white/75">{active.genres.slice(0, 4).map(titleCase).join(', ')}</span>
           {/if}
-        </div>
-      {/if}
+        {/if}
+      </div>
 
       <p class="mb-5 line-clamp-2 max-w-xl text-sm text-white/80 drop-shadow">{banners[index].description}</p>
 
