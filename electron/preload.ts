@@ -55,7 +55,12 @@ contextBridge.exposeInMainWorld('cr', {
     onAvailable: (cb: (d: { version: string }) => void) => ipcRenderer.on('update:available', (_e, d) => cb(d)),
     onProgress: (cb: (d: { percent: number }) => void) => ipcRenderer.on('update:progress', (_e, d) => cb(d)),
     onDownloaded: (cb: (d: { version: string }) => void) => ipcRenderer.on('update:downloaded', (_e, d) => cb(d)),
+    onNone: (cb: () => void) => ipcRenderer.on('update:none', () => cb()),
+    onState: (cb: (d: any) => void) => ipcRenderer.on('update:state', (_e, d) => cb(d)),
     download: () => ipcRenderer.invoke('update:download'),
-    install: () => ipcRenderer.invoke('update:install')
+    install: () => ipcRenderer.invoke('update:install'),
+    check: () => ipcRenderer.invoke('update:check'),
+    getState: () => ipcRenderer.invoke('update:getState'),
+    setChannel: (channel: 'stable' | 'dev') => ipcRenderer.invoke('update:setChannel', channel)
   }
 })

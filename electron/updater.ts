@@ -1,39 +1,105 @@
 import { BrowserWindow, ipcMain, app } from 'electron'
 // electron-updater is CommonJS with `__esModule: true` but NO default export, so a default
-// import resolves to undefined under esModuleInterop. Use a named import (compiles to
-// require('electron-updater').autoUpdater) so the main process doesn't crash at load.
+// import resolves to undefined under esModuleInterop. Use a named import.
 import { autoUpdater } from 'electron-updater'
+import { readFileSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
 
-// Self-update for the packaged AppImage (Steam Deck). We do NOT auto-download: the renderer shows a
-// banner, the user opts in, then we download (with progress) and quitAndInstall() to swap the
-// AppImage in place and relaunch — the standard, Deck-compatible AppImage update flow.
-export function initUpdater(win: BrowserWindow) {
-  if (!app.isPackaged) return // dev build: nothing to update
+// Self-update for the packaged AppImage (Steam Deck). Stable = full GitHub releases; Dev = prereleases.
+// We persist the channel + last-checked + last-updated so Settings can show + control all of it.
+type Channel = 'stable' | 'dev'
+interface UState {
+  channel: Channel
+  lastChecked: number | null
+  lastUpdated: { version: string; at: number } | null
+  knownVersion: string // the version we last ran as — used to detect a completed self-update
+}
+const DEFAULTS: UState = { channel: 'stable', lastChecked: null, lastUpdated: null, knownVersion: '' }
+
+let state: UState = { ...DEFAULTS }
+let win: BrowserWindow | null = null
+
+const stateFile = () => path.join(app.getPath('userData'), 'update-state.json')
+function load(): UState {
+  try {
+    return { ...DEFAULTS, ...JSON.parse(readFileSync(stateFile(), 'utf8')) }
+  } catch {
+    return { ...DEFAULTS }
+  }
+}
+function save() {
+  try {
+    writeFileSync(stateFile(), JSON.stringify(state))
+  } catch {
+    /* ignore */
+  }
+}
+
+function snapshot() {
+  return { ...state, currentVersion: app.getVersion(), packaged: app.isPackaged }
+}
+function pushState() {
+  if (win && !win.isDestroyed()) win.webContents.send('update:state', snapshot())
+}
+function applyChannel() {
+  // Stable -> latest*.yml (full releases). Dev -> dev*.yml (prereleases).
+  autoUpdater.channel = state.channel === 'dev' ? 'dev' : 'latest'
+  autoUpdater.allowPrerelease = state.channel === 'dev'
+}
+
+async function doCheck() {
+  state.lastChecked = Date.now()
+  save()
+  pushState()
+  if (!app.isPackaged) return { available: false } // dev run: nothing to update
+  try {
+    const r = await autoUpdater.checkForUpdates()
+    const v = r?.updateInfo?.version
+    return { available: !!v && v !== app.getVersion(), version: v }
+  } catch (e) {
+    console.error('[update] check', String((e as any)?.message ?? e).slice(0, 140))
+    return { available: false, error: 'check failed' }
+  }
+}
+
+export function initUpdater(window: BrowserWindow) {
+  win = window
+  state = load()
+
+  // Detect a just-completed self-update: running version differs from the last recorded one.
+  const cur = app.getVersion()
+  if (app.isPackaged && state.knownVersion && state.knownVersion !== cur) {
+    state.lastUpdated = { version: cur, at: Date.now() }
+  }
+  state.knownVersion = cur
+  save()
 
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = true
+  applyChannel()
 
-  const send = (channel: string, data?: unknown) => {
-    if (!win.isDestroyed()) win.webContents.send(channel, data)
+  const send = (ch: string, d?: unknown) => {
+    if (win && !win.isDestroyed()) win.webContents.send(ch, d)
   }
-
-  autoUpdater.on('update-available', (info) => {
-    console.log('[update] available', info.version)
-    send('update:available', { version: info.version })
-  })
-  autoUpdater.on('update-not-available', () => console.log('[update] up to date'))
+  autoUpdater.on('update-available', (info) => send('update:available', { version: info.version }))
+  autoUpdater.on('update-not-available', () => send('update:none'))
   autoUpdater.on('download-progress', (p) => send('update:progress', { percent: Math.round(p.percent) }))
-  autoUpdater.on('update-downloaded', (info) => {
-    console.log('[update] downloaded', info.version)
-    send('update:downloaded', { version: info.version })
-  })
+  autoUpdater.on('update-downloaded', (info) => send('update:downloaded', { version: info.version }))
   autoUpdater.on('error', (e) => console.error('[update] error', String((e as any)?.message ?? e).slice(0, 200)))
 
   ipcMain.handle('update:download', () => autoUpdater.downloadUpdate())
   ipcMain.handle('update:install', () => autoUpdater.quitAndInstall())
+  ipcMain.handle('update:check', () => doCheck())
+  ipcMain.handle('update:getState', () => snapshot())
+  ipcMain.handle('update:setChannel', (_e, channel: Channel) => {
+    state.channel = channel === 'dev' ? 'dev' : 'stable'
+    save()
+    applyChannel()
+    return doCheck()
+  })
 
-  // Check shortly after launch (let the UI settle first), then every 6 hours.
-  const check = () => autoUpdater.checkForUpdates().catch((e) => console.error('[update] check', String((e as any)?.message ?? e).slice(0, 140)))
-  setTimeout(check, 5000)
-  setInterval(check, 6 * 60 * 60 * 1000)
+  if (app.isPackaged) {
+    setTimeout(doCheck, 5000)
+    setInterval(doCheck, 6 * 60 * 60 * 1000)
+  }
 }

@@ -98,8 +98,13 @@ interface CrBridge {
     onAvailable(cb: (d: { version: string }) => void): void
     onProgress(cb: (d: { percent: number }) => void): void
     onDownloaded(cb: (d: { version: string }) => void): void
+    onNone(cb: () => void): void
+    onState(cb: (d: UpdateState) => void): void
     download(): Promise<void>
     install(): Promise<void>
+    check(): Promise<{ available: boolean; version?: string; error?: string }>
+    getState(): Promise<UpdateState>
+    setChannel(channel: 'stable' | 'dev'): Promise<{ available: boolean; version?: string; error?: string }>
   }
 }
 
@@ -107,6 +112,13 @@ declare global {
   namespace App {}
   interface Window {
     cr: CrBridge
+  }
+  type UpdateState = {
+    channel: 'stable' | 'dev'
+    lastChecked: number | null
+    lastUpdated: { version: string; at: number } | null
+    currentVersion: string
+    packaged: boolean
   }
 }
 
