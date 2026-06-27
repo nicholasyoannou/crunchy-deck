@@ -1,8 +1,8 @@
 import { BrowserWindow, ipcMain, app } from 'electron'
-import electronUpdater from 'electron-updater'
-
-// electron-updater is CommonJS; this project is ESM, so default-import then destructure.
-const { autoUpdater } = electronUpdater
+// electron-updater is CommonJS with `__esModule: true` but NO default export, so a default
+// import resolves to undefined under esModuleInterop. Use a named import (compiles to
+// require('electron-updater').autoUpdater) so the main process doesn't crash at load.
+import { autoUpdater } from 'electron-updater'
 
 // Self-update for the packaged AppImage (Steam Deck). We do NOT auto-download: the renderer shows a
 // banner, the user opts in, then we download (with progress) and quitAndInstall() to swap the
