@@ -47,10 +47,10 @@
 {:else if phase === 'loading'}
   <!-- shell skeleton (brief — the shell is prefetched during the intro) -->
   <div class="h-screen overflow-hidden p-10">
-    <div class="mb-8 h-[42vh] animate-pulse rounded-card bg-surface-2"></div>
+    <div class="shimmer mb-8 h-[42vh] rounded-card"></div>
     {#each Array(2) as _row}
       <section class="mb-8">
-        <div class="mb-3 h-5 w-48 animate-pulse rounded bg-surface-2"></div>
+        <div class="shimmer mb-3 h-5 w-48 rounded"></div>
         <div class="flex gap-4 overflow-hidden">
           {#each Array(8) as _card}
             <SkeletonCard />
