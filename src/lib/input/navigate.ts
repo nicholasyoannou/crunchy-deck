@@ -41,7 +41,7 @@ export function moveFocus(direction: Direction): boolean {
   if (!target) return false
   target.focus()
   // optional-chain: jsdom (tests) has no scrollIntoView; browsers do
-  target.scrollIntoView?.({ block: 'center', inline: 'center', behavior: 'smooth' })
+  target.scrollIntoView?.({ block: 'nearest', inline: 'center', behavior: 'smooth' })
   return true
 }
 
