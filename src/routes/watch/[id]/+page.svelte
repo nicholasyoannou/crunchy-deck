@@ -481,7 +481,9 @@
   )
 </script>
 
-<svelte:window onkeydown={onKey} onmousemove={showOverlay} />
+<!-- no onmousemove: gamescope delivers touch as a mouse, so pressing the Steam button (overlay cursor
+     jiggle) would otherwise pop the player chrome. Controls show on tap / D-pad / keypress instead. -->
+<svelte:window onkeydown={onKey} />
 
 <div class="relative h-screen w-screen overflow-hidden bg-black">
   <!-- svelte-ignore a11y_media_has_caption -->

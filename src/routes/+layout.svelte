@@ -3,6 +3,7 @@
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
   import { startGamepadPoller } from '$lib/input/poller'
+  import { startDragScroll } from '$lib/input/dragScroll'
   import { ensureFocus } from '$lib/input/navigate'
   import { dispatchCommand } from '$lib/input/commands'
   import { navOpen, exitOpen } from '$lib/nav/overlays'
@@ -14,6 +15,7 @@
 
   onMount(() => {
     const stop = startGamepadPoller()
+    const stopDrag = startDragScroll() // touch/trackpad drag-to-scroll (gamescope delivers touch as mouse)
     const id = setInterval(ensureFocus, 500)
 
     const onSearch = () => goto('/search')
@@ -53,6 +55,7 @@
 
     return () => {
       stop()
+      stopDrag()
       clearInterval(id)
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('cr:search', onSearch)
