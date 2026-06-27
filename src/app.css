@@ -17,10 +17,30 @@ body {
   overflow: hidden;
 }
 
-/* always-obvious focus for controller use */
-[data-input='dpad'] [data-focusable]:focus {
+/* always-obvious focus for controller use — skipped for elements that own their ring */
+[data-input='dpad'] [data-focusable]:focus:not([data-focus-self]) {
   outline: 3px solid theme('colors.brand');
   outline-offset: 2px;
+}
+
+/* skeleton shimmer sweep (reads more native than an opacity blink) */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background-color: theme('colors.surface.2');
+}
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: shimmer 1.4s infinite;
 }
 
 /* hide scrollbars (10-foot UI) */
