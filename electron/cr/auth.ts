@@ -72,6 +72,36 @@ export async function login(username: string, password: string) {
   return { authenticated: true, account_id: state!.account_id, country: state!.country }
 }
 
+export interface Profile {
+  profile_id: string
+  profile_name?: string
+  username?: string
+  avatar?: string
+  wallpaper?: string
+  is_selected?: boolean
+}
+
+// The account's profiles (GET /accounts/v1/me/multiprofile, Bearer-authed).
+export async function getProfiles(): Promise<Profile[]> {
+  const token = await accessToken()
+  const res: any = await crFetch(`${CR.API}/accounts/v1/me/multiprofile`, { bearer: token })
+  console.log('[profiles] fields', res?.profiles?.[0] ? Object.keys(res.profiles[0]).join(',') : 'none')
+  return res?.profiles ?? []
+}
+
+// Re-mint the token scoped to a profile (grant_type=refresh_token_profile_id) and persist it so the
+// selection survives restarts. Returns the new account/profile ids.
+export async function switchProfile(profile_id: string) {
+  await accessToken() // ensures `state` is populated and the refresh token is current
+  if (!state) throw new Error('not_authenticated')
+  const json = await crFetch(`${CR.API}/auth/v1/token`, {
+    clientAuth: true,
+    form: { refresh_token: state.refresh_token, grant_type: 'refresh_token_profile_id', profile_id, scope: 'offline_access' }
+  })
+  adoptToken(json)
+  return { profile_id, account_id: state.account_id }
+}
+
 // Dedupe concurrent refreshes — CR rotates refresh tokens, so parallel refreshes with the
 // same token would invalidate each other and fail all-but-one (breaks lazy row loads).
 let inflight: Promise<void> | null = null

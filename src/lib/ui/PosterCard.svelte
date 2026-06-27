@@ -3,11 +3,20 @@
   import type { CrItem } from '$lib/api/types'
   import { setHint } from '$lib/api/seriesHint'
 
-  let { uid, item }: { uid: string; item: CrItem } = $props()
+  // fill = stretch to the cell (grid use, e.g. PosterGrid); otherwise fixed-size (carousels).
+  let { uid, item, fill = false }: { uid: string; item: CrItem; fill?: boolean } = $props()
 
   const isEpisode = $derived(item.display === 'episode')
   const img = $derived(isEpisode ? item.background : (item.poster ?? item.background))
-  const size = $derived(isEpisode ? 'h-[150px] w-[266px]' : 'h-[290px] w-[195px]')
+  const size = $derived(
+    fill
+      ? isEpisode
+        ? 'aspect-video w-full'
+        : 'aspect-[195/290] w-full'
+      : isEpisode
+        ? 'h-[150px] w-[266px]'
+        : 'h-[290px] w-[195px]'
+  )
   const progress = $derived(
     item.playhead && item.duration ? Math.min(100, (item.playhead / item.duration) * 100) : 0
   )
@@ -41,9 +50,6 @@
       class="absolute left-2 top-2 rounded bg-brand px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-black"
       >New</span
     >
-  {/if}
-  {#if item.isPremium}
-    <span class="absolute right-2 top-2 text-base text-brand drop-shadow" title="Premium">◆</span>
   {/if}
 
   <!-- play affordance (prominent on Continue Watching) -->

@@ -18,7 +18,24 @@
   let episodes: CrEpisode[] = $state([])
   let epsLoading = $state(true)
   let upNext: CrUpNext = $state(null)
+  let inWatchlist: boolean | null = $state(null)
+  let wlBusy = false
   let error = $state('')
+
+  async function toggleWatchlist() {
+    if (wlBusy || inWatchlist === null) return
+    const want = !inWatchlist
+    inWatchlist = want // optimistic
+    wlBusy = true
+    const res = want
+      ? await window.cr.api.watchlistAdd(startId)
+      : await window.cr.api.watchlistRemove(startId)
+    wlBusy = false
+    if (!res.ok) {
+      inWatchlist = !want // revert on failure
+      authGuard(res)
+    }
+  }
 
   async function loadEps(seasonId: string) {
     epsLoading = true
@@ -59,6 +76,10 @@
     seasons = mapSeasons(res.data.seasons)
     upNext = res.data.upNext
     phase = 'ready'
+    // non-blocking: resolve the bookmark state once the page is up
+    window.cr.api.watchlistCheck(startId).then((r) => {
+      if (r.ok) inWatchlist = r.data
+    })
     if (seasons[0]) await loadEps(seasons[0].id)
     requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-focusable]')?.focus())
   })
@@ -73,13 +94,14 @@
   </div>
 {:else}
   <div class="h-screen overflow-y-auto">
-    <SeriesHero {hint} {info} {upNext} onplay={playMain} />
+    <SeriesHero {hint} {info} {upNext} onplay={playMain} {inWatchlist} ontoggle={toggleWatchlist} />
 
     <div class="px-10 pb-16">
       {#if info && seasons.length > 1}
         <div class="mb-6 flex flex-wrap gap-2">
           {#each seasons as season, i}
             <button
+              id={`season-${i}`}
               data-focusable
               data-focus-self
               onclick={() => selectSeason(i)}

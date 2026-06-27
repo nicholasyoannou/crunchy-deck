@@ -62,7 +62,7 @@
       const s = p.data.status
       if (s === 'ok') {
         stopPolling()
-        goto('/home')
+        goto('/profiles')
       } else if (s === 'expired') {
         stopPolling()
         qrStatus = 'expired'
@@ -84,7 +84,7 @@
     emailError = ''
     const res = await window.cr.auth.login(username, password)
     busy = false
-    if (res.ok && res.data.authenticated) goto('/home')
+    if (res.ok && res.data.authenticated) goto('/profiles')
     else emailError = res.ok ? 'Login failed' : res.error
   }
 

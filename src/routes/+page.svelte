@@ -1,33 +1,32 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
-  import { prefetchHome } from '$lib/api/homeStore'
 
+  let target: string | null = $state(null) // '/login' (authenticated users skip straight to /profiles)
   let videoDone = $state(false)
-  let target: string | null = $state(null) // '/home' | '/login'
-  let showSpinner = $state(false)
+  let showVideo = $state(false) // only play the CR logo intro when we're NOT already logged in
 
   async function resolveTarget() {
     if (!window.cr) {
       target = '/login'
+      showVideo = true
       return
     }
     try {
       const s = await window.cr.auth.status()
       if (s.ok && s.data.authenticated) {
-        prefetchHome() // load the feed while the intro plays -> instant Home
-        target = '/home'
-      } else {
-        target = '/login'
+        goto('/profiles') // already logged in -> skip the logo intro, go pick a profile
+        return
       }
     } catch {
-      target = '/login'
+      /* fall through to login */
     }
+    target = '/login'
+    showVideo = true // logged out: play the intro, then go to login
   }
 
   function finishVideo() {
     videoDone = true
-    if (!target) showSpinner = true
   }
 
   onMount(() => {
@@ -41,20 +40,22 @@
   })
 </script>
 
-<div class="fixed inset-0 z-50 bg-black">
-  <!-- bundled, plays instantly + fullscreen; load happens in the background while it animates -->
-  <video
-    src="/CRLogoIntro.mp4"
-    autoplay
-    muted
-    playsinline
-    onended={finishVideo}
-    onerror={finishVideo}
-    class="h-full w-full object-cover"
-  ></video>
-  {#if showSpinner}
-    <div class="absolute inset-x-0 bottom-16 flex justify-center">
-      <div class="h-9 w-9 animate-spin rounded-full border-2 border-white/20 border-t-brand"></div>
-    </div>
-  {/if}
-</div>
+{#if showVideo}
+  <div class="fixed inset-0 z-50 bg-black">
+    <!-- bundled, plays instantly + fullscreen; load happens in the background while it animates -->
+    <video
+      src="/CRLogoIntro.mp4"
+      autoplay
+      muted
+      playsinline
+      onended={finishVideo}
+      onerror={finishVideo}
+      class="h-full w-full object-cover"
+    ></video>
+  </div>
+{:else}
+  <!-- resolving auth (logged-in users land here for a beat, then route to /profiles) -->
+  <div class="fixed inset-0 z-50 grid place-items-center bg-black">
+    <div class="h-9 w-9 animate-spin rounded-full border-2 border-white/20 border-t-brand"></div>
+  </div>
+{/if}

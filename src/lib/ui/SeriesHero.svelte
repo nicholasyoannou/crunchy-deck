@@ -6,12 +6,16 @@
     hint,
     info,
     upNext,
-    onplay
+    onplay,
+    inWatchlist = null,
+    ontoggle
   }: {
     hint: SeriesHint | null
     info: CrSeriesInfo | null
     upNext: CrUpNext
     onplay: () => void
+    inWatchlist?: boolean | null
+    ontoggle?: () => void
   } = $props()
 
   let bgLoaded = $state(false)
@@ -59,16 +63,31 @@
     {/if}
 
     {#if info}
-      <button
-        id="hero-play"
-        data-focusable
-        data-focus-self
-        onclick={onplay}
-        class="inline-flex items-center gap-2 rounded-lg bg-brand px-7 py-3 font-bold text-black outline-none transition select:ring-4 select:ring-white/40"
-      >
-        <span class="text-lg">▶</span>
-        {playLabel}
-      </button>
+      <div class="flex items-center gap-3">
+        <button
+          id="hero-play"
+          data-focusable
+          data-focus-self
+          onclick={onplay}
+          class="inline-flex items-center gap-2 rounded-lg bg-brand px-7 py-3 font-bold text-black outline-none transition select:ring-4 select:ring-white/40"
+        >
+          <span class="text-lg">▶</span>
+          {playLabel}
+        </button>
+        {#if ontoggle && inWatchlist !== null}
+          <button
+            id="hero-watchlist"
+            data-focusable
+            data-focus-self
+            onclick={ontoggle}
+            aria-pressed={inWatchlist}
+            class="inline-flex items-center gap-2 rounded-lg bg-surface-2/90 px-5 py-3 font-bold text-white outline-none transition select:ring-4 select:ring-white/30"
+          >
+            <span class="text-lg">{inWatchlist ? '✓' : '＋'}</span>
+            {inWatchlist ? 'In Watchlist' : 'Watchlist'}
+          </button>
+        {/if}
+      </div>
     {:else}
       <div class="shimmer h-12 w-44 rounded-lg"></div>
     {/if}

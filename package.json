@@ -10,6 +10,7 @@
     "build:electron": "tsc -p tsconfig.node.json && node scripts/postbuild-electron.mjs",
     "dev": "concurrently -k \"pnpm dev:web\" \"wait-on tcp:5173 && cross-env ELECTRON_RENDERER_URL=http://localhost:5173 electron .\"",
     "build": "pnpm build:web && pnpm build:electron",
+    "build:app": "pnpm build:web && pnpm build:electron && electron-builder --win",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "svelte-check --tsconfig ./tsconfig.json"
@@ -37,11 +38,24 @@
   "dependencies": {
     "@fontsource-variable/nunito": "^5.2.7",
     "@fontsource/geist-mono": "^5.2.8",
+    "electron-updater": "^6.8.9",
     "qrcode": "^1.5.4",
     "shaka-player": "^4.11.0"
   },
   "build": {
     "appId": "app.crunchydeck",
+    "productName": "Crunchy Deck",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "nicholasyoannou",
+        "repo": "crunchy-deck"
+      }
+    ],
+    "asar": false,
+    "directories": {
+      "output": "release"
+    },
     "electronDownload": {
       "mirror": "https://github.com/castlabs/electron-releases/releases/download/"
     },
@@ -49,6 +63,10 @@
       "dist-electron/**",
       "build/**"
     ],
+    "afterPack": "scripts/vmp-sign.cjs",
+    "win": {
+      "target": "dir"
+    },
     "linux": {
       "target": [
         "AppImage"
@@ -61,5 +79,6 @@
       "electron",
       "esbuild"
     ]
-  }
+  },
+  "license": "GPL-3.0-or-later"
 }

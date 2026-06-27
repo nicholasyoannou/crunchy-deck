@@ -72,6 +72,41 @@ export async function loadSeries(id: string, locale = 'en-US') {
   return { series, seasons, upNext }
 }
 
+// Lightweight detail for the home hero card: age rating, sub/dub, genres, and the resume episode
+// (so the hero can show a Continue/Play button). Cheaper than loadSeries (no seasons/episodes).
+export async function loadHeroDetail(id: string, locale = 'en-US') {
+  const token = await accessToken()
+  const obj: any = await crFetch(`${CR.API}/content/v2/cms/objects/${id}?locale=${locale}`, { bearer: token })
+  const d = obj?.data?.[0] ?? {}
+  const sm = d.series_metadata ?? d.movie_metadata ?? {}
+
+  let upNext: { id: string; seasonNumber: number; episodeNumber: number; playhead: number; fullyWatched: boolean } | null = null
+  try {
+    const un: any = await crFetch(`${CR.API}/content/v2/discover/up_next/${id}?locale=${locale}`, { bearer: token })
+    const item = un?.data?.[0]
+    if (item?.panel) {
+      const em = item.panel.episode_metadata ?? {}
+      upNext = {
+        id: item.panel.id,
+        seasonNumber: em.season_number ?? 0,
+        episodeNumber: em.episode_number ?? 0,
+        playhead: item.playhead ?? 0,
+        fullyWatched: !!item.fully_watched
+      }
+    }
+  } catch {
+    /* no resume point (e.g. a movie or nothing watched) */
+  }
+
+  return {
+    rating: ((sm.maturity_ratings ?? [])[0] ?? null) as string | null,
+    isDubbed: !!sm.is_dubbed,
+    isSubbed: !!sm.is_subbed,
+    genres: (sm.tenant_categories ?? []) as string[],
+    upNext
+  }
+}
+
 export async function loadEpisodes(seasonId: string, locale = 'en-US') {
   const c = await cmsCookie()
   const e: any = await crFetch(`${CR.API}/cms/v2${c.bucket}/episodes?season_id=${seasonId}&locale=${locale}&${sign(c)}`)

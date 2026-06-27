@@ -10,6 +10,11 @@ export function startGamepadPoller() {
   let heldDir: Direction | null = null
   let raf = 0
 
+  // TEMP input diagnostics — reveals what the Steam Deck emits per physical button so the
+  // back/menu mappings can be fixed against real evidence. Remove once mapping is confirmed.
+  const onKeyLog = (e: KeyboardEvent) => window.cr?.log(`[key] ${e.key}`)
+  window.addEventListener('keydown', onKeyLog)
+
   const now = () => performance.now()
 
   const dispatch = (cmd: NavCommand) => dispatchCommand(cmd)
@@ -25,6 +30,7 @@ export function startGamepadPoller() {
         const pressed = b.pressed
         if (pressed && !prevButtons.get(i)) {
           const cmd = buttonToCommand(i)
+          window.cr?.log(`[gp] btn=${i} cmd=${cmd ?? 'none'}`) // TEMP diagnostics
           if (cmd) dispatch(cmd)
         }
         prevButtons.set(i, pressed)
@@ -47,5 +53,8 @@ export function startGamepadPoller() {
     raf = requestAnimationFrame(loop)
   }
   raf = requestAnimationFrame(loop)
-  return () => cancelAnimationFrame(raf)
+  return () => {
+    cancelAnimationFrame(raf)
+    window.removeEventListener('keydown', onKeyLog)
+  }
 }

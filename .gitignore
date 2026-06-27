@@ -7,3 +7,4 @@ release/
 *.log
 .env
 _research/
+.claude/

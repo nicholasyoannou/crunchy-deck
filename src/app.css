@@ -23,6 +23,12 @@ body {
   outline-offset: 2px;
 }
 
+/* keep the whole element + its focus ring/scale in view when scrollIntoView reveals it,
+   so the selection outline never gets clipped at the scroll-container edge */
+[data-focusable] {
+  scroll-margin: 1.5rem;
+}
+
 /* skeleton shimmer sweep (reads more native than an opacity blink) */
 @keyframes shimmer {
   100% {

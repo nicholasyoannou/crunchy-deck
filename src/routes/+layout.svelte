@@ -1,16 +1,23 @@
 <script lang="ts">
   import '../app.css'
   import { onMount } from 'svelte'
+  import { goto } from '$app/navigation'
   import { startGamepadPoller } from '$lib/input/poller'
   import { ensureFocus } from '$lib/input/navigate'
   import { dispatchCommand } from '$lib/input/commands'
-  import MimicControls from '$lib/ui/MimicControls.svelte'
+  import { navOpen, exitOpen } from '$lib/nav/overlays'
+  import NavMenu from '$lib/ui/NavMenu.svelte'
+  import ExitConfirm from '$lib/ui/ExitConfirm.svelte'
+  import UpdateBanner from '$lib/ui/UpdateBanner.svelte'
 
   let { children } = $props()
 
   onMount(() => {
     const stop = startGamepadPoller()
     const id = setInterval(ensureFocus, 500)
+
+    const onSearch = () => goto('/search')
+    window.addEventListener('cr:search', onSearch)
 
     const onKey = (e: KeyboardEvent) => {
       const a = document.activeElement
@@ -32,9 +39,14 @@
       stop()
       clearInterval(id)
       window.removeEventListener('keydown', onKey)
+      window.removeEventListener('cr:search', onSearch)
     }
   })
 </script>
 
-{@render children()}
-<MimicControls />
+<div id="app-content" inert={$navOpen || $exitOpen}>
+  {@render children()}
+</div>
+<NavMenu />
+<ExitConfirm />
+<UpdateBanner />

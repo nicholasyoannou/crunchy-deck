@@ -9,6 +9,7 @@ import {
 export function focusables(scope: ParentNode = document): Focusable[] {
   return Array.from(scope.querySelectorAll<HTMLElement>('[data-focusable]'))
     .filter((e) => e.offsetParent !== null || e.getClientRects().length > 0)
+    .filter((e) => !e.closest('[inert]')) // skip elements under an open overlay's inert subtree
     .map((e) => {
       const r = e.getBoundingClientRect()
       return { id: e.id, rect: { x: r.x, y: r.y, width: r.width, height: r.height } }
@@ -27,10 +28,19 @@ function readOverrides(e: HTMLElement): Overrides {
   return o
 }
 
+// First focusable not sealed under an open overlay's [inert] subtree.
+function firstFocusable(): HTMLElement | null {
+  return (
+    Array.from(document.querySelectorAll<HTMLElement>('[data-focusable]')).find(
+      (e) => !e.closest('[inert]')
+    ) ?? null
+  )
+}
+
 export function moveFocus(direction: Direction): boolean {
   const active = document.activeElement as HTMLElement | null
   if (!active || !active.id) {
-    const first = document.querySelector<HTMLElement>('[data-focusable]')
+    const first = firstFocusable()
     first?.focus()
     return !!first
   }
@@ -49,6 +59,6 @@ export function moveFocus(direction: Direction): boolean {
 export function ensureFocus() {
   const a = document.activeElement
   if (!a || a === document.body) {
-    document.querySelector<HTMLElement>('[data-focusable]')?.focus()
+    firstFocusable()?.focus()
   }
 }
