@@ -1,7 +1,12 @@
 import { app, BrowserWindow, components, session, ipcMain } from 'electron'
 import path from 'node:path'
 import http from 'node:http'
+import dns from 'node:dns'
 import { readFileSync, existsSync, appendFileSync } from 'node:fs'
+
+// Prefer IPv4: the Steam runtime / gamescope network namespace often has broken IPv6, so Node's default
+// "try IPv6 first" makes every auth/profiles/home request stall on a timeout -> minute-long launches.
+dns.setDefaultResultOrder('ipv4first')
 import { registerIpc } from './ipc.js'
 import { initUpdater } from './updater.js'
 import { killTreeAndExit } from './lifecycle.js'
@@ -13,28 +18,27 @@ const isDev = !!process.env.ELECTRON_RENDERER_URL
 const T0 = Date.now()
 const boot = (stage: string) => console.log(`[boot] ${stage} +${Date.now() - T0}ms`)
 
-// Steam Deck GAMING MODE runs under gamescope (a nested Wayland compositor). Electron's default GPU
-// backend (ANGLE/Vulkan) frequently fails to PRESENT frames there -> a blank/black window, even though
-// the app is running fine (Desktop/KDE mode is unaffected). Forcing ANGLE onto the plain GL path makes
-// gamescope present it. We only do this for Steam/gamescope launches so the already-working Desktop
-// launch keeps its default. Overrides: CR_GL=<gl|gles|vulkan|swiftshader>, CR_NO_GPU=1 (software).
-// These switches MUST be set before app is ready, so this runs at module load.
+// Steam Deck GAMING MODE runs under gamescope. The GPU path there is a trap: default ANGLE renders a
+// BLANK window, while forcing ANGLE-GL renders (software fallback) but the GPU process crash-retries
+// first, giving MULTI-MINUTE launches (Desktop/KDE is unaffected — it falls back fast). Since we end up
+// software-rendered either way (gl=none confirmed in the logs), just go straight to software under
+// gamescope: the window always paints AND launch is fast (no crash-retry). CR_GL=<gl|gles|vulkan>
+// overrides this to try real hardware accel; CR_NO_GPU forces software anywhere.
+// Must run before app is ready, so this is at module load.
 function tuneGpuForGamescope() {
   const env = process.env
-  if (env.CR_NO_GPU) {
-    app.disableHardwareAcceleration()
-    return
-  }
   const onGamescope = !!(
     env.GAMESCOPE_WAYLAND_DISPLAY ||
     /gamescope/i.test(env.XDG_CURRENT_DESKTOP ?? '') ||
     /gamescope/i.test(env.XDG_SESSION_DESKTOP ?? '')
   )
   const viaSteam = !!(env.SteamEnv || env.SteamGameId || env.SteamAppId || env.SteamClientLaunch)
-  if (onGamescope || viaSteam || env.CR_GL) {
+  if (env.CR_GL) {
     app.commandLine.appendSwitch('use-gl', 'angle')
-    app.commandLine.appendSwitch('use-angle', env.CR_GL || 'gl')
-    app.commandLine.appendSwitch('disable-gpu-sandbox') // gamescope + the GPU sandbox can deadlock the GPU process
+    app.commandLine.appendSwitch('use-angle', env.CR_GL) // experiment with a real backend (e.g. vulkan)
+    app.commandLine.appendSwitch('disable-gpu-sandbox')
+  } else if (env.CR_NO_GPU || onGamescope || viaSteam) {
+    app.disableHardwareAcceleration() // software render — reliable + fast under gamescope
   }
 }
 tuneGpuForGamescope()
