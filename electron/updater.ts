@@ -42,10 +42,13 @@ function pushState() {
   if (win && !win.isDestroyed()) win.webContents.send('update:state', snapshot())
 }
 function applyChannel() {
-  // Both channels read latest*.yml; "dev" simply also considers GitHub *prereleases* (dev builds are
-  // published with the prerelease flag), so stable users never see them.
-  autoUpdater.channel = 'latest'
-  autoUpdater.allowPrerelease = state.channel === 'dev'
+  // electron-updater's GitHub provider matches a prerelease in the releases feed ONLY when its channel
+  // (from the -dev.N tag) equals autoUpdater.channel — so the dev channel MUST be 'dev', not 'latest'
+  // (else: "No published versions on GitHub"). It then looks for dev-linux.yml and, on 404, falls back
+  // to latest-linux.yml — which is what our dev prereleases actually ship.
+  const dev = state.channel === 'dev'
+  autoUpdater.channel = dev ? 'dev' : 'latest'
+  autoUpdater.allowPrerelease = dev
 }
 
 async function doCheck() {
