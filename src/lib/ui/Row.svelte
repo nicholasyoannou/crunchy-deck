@@ -49,7 +49,7 @@
 
 <section bind:this={section} class="mb-8" class:hidden={items !== null && items.length === 0}>
   <h2 class="mb-3 text-lg font-bold text-white/80">{row.title}</h2>
-  <div class="flex gap-4 overflow-x-auto pb-2">
+  <div class="flex gap-4 overflow-x-auto px-1 py-8 [scroll-padding-inline:1.5rem]">
     {#if items === null}
       {#each Array(8) as _i}
         <SkeletonCard />
@@ -61,3 +61,10 @@
     {/if}
   </div>
 </section>
+
+<style>
+  section:focus-within :global([data-focus-self]:not(:focus):not(:hover)) {
+    opacity: 0.82;
+    transition: opacity 0.15s ease;
+  }
+</style>

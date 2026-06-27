@@ -25,9 +25,10 @@
 <button
   id={uid}
   data-focusable
+  data-focus-self
   title={item.title}
   onclick={() => goto(`/series/${item.id}`)}
-  class={`group relative shrink-0 overflow-hidden rounded-card bg-surface-2 outline-none transition-transform duration-150 ease-out select:scale-105 select:shadow-2xl select:shadow-black/60 ${size}`}
+  class={`group relative shrink-0 origin-bottom overflow-hidden rounded-card bg-surface-2 outline-none transition-[transform,box-shadow] duration-150 ease-out select:-translate-y-[7px] select:scale-105 select:shadow-[0_0_0_3px_#F47521,0_14px_34px_rgba(0,0,0,0.65)] ${size}`}
 >
   <img src={img} alt={item.title} loading="lazy" class="h-full w-full object-cover" />
 
@@ -64,5 +65,4 @@
     </div>
   {/if}
 
-  <div class="pointer-events-none absolute inset-0 rounded-card ring-0 ring-brand transition-all group-select:ring-4"></div>
 </button>
