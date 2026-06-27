@@ -18,6 +18,12 @@ const isDev = !!process.env.ELECTRON_RENDERER_URL
 const T0 = Date.now()
 const boot = (stage: string) => console.log(`[boot] ${stage} +${Date.now() - T0}ms`)
 
+// THE Gaming-Mode launch fix: Chromium's seccomp-bpf sandbox conflicts with gamescope/Steam's own
+// kernel sandboxing, so under gamescope the renderer hangs for minutes (or never launches) before
+// timing out — Desktop mode is unaffected. --no-sandbox resolves it. Safe here: a single-user AppImage
+// that only ever loads its own bundled content. (Confirmed on the Deck; must be set before app ready.)
+app.commandLine.appendSwitch('no-sandbox')
+
 // Steam Deck GAMING MODE runs under gamescope. The GPU path there is a trap: default ANGLE renders a
 // BLANK window, while forcing ANGLE-GL renders (software fallback) but the GPU process crash-retries
 // first, giving MULTI-MINUTE launches (Desktop/KDE is unaffected — it falls back fast). Since we end up

@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
       /* Paints the instant the document loads — before the SvelteKit bundle/CSS — so launch shows a
-         branded screen (logo + spinner) instead of a flat default colour. Removed by +layout once
-         the app mounts. */
+         spinner on a dark background instead of a flat default colour. Removed by +layout once the
+         app mounts. */
       html,
       body {
         margin: 0;
@@ -22,20 +22,9 @@
         background: #0a0a0a;
         transition: opacity 0.45s ease;
       }
-      #boot-splash .stack {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 30px;
-      }
-      #boot-splash img {
-        width: 248px; /* Crunchyroll wordmark (712x128) */
-        height: auto;
-        filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.5));
-      }
       #boot-splash .spin {
-        width: 38px;
-        height: 38px;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
         border: 3px solid rgba(255, 255, 255, 0.15);
         border-top-color: #f47521;
@@ -50,12 +39,7 @@
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
-    <div id="boot-splash">
-      <div class="stack">
-        <img src="/cr-logo.webp" alt="" />
-        <div class="spin"></div>
-      </div>
-    </div>
+    <div id="boot-splash"><div class="spin"></div></div>
     <div id="root" data-input="dpad">%sveltekit.body%</div>
   </body>
 </html>
