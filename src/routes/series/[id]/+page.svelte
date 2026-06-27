@@ -93,10 +93,10 @@
     </div>
   </div>
 {:else}
-  <div class="h-screen overflow-y-auto">
+  <div class="h-screen overflow-y-auto" style="scroll-padding-top:1.5rem">
     <SeriesHero {hint} {info} {upNext} onplay={playMain} {inWatchlist} ontoggle={toggleWatchlist} />
 
-    <div class="px-10 pb-16">
+    <div class="px-10 pb-16 pt-3">
       {#if info && seasons.length > 1}
         <div class="mb-6 flex flex-wrap gap-2">
           {#each seasons as season, i}
@@ -104,6 +104,10 @@
               id={`season-${i}`}
               data-focusable
               data-focus-self
+              data-up="#hero-play"
+              data-down="#ep-0"
+              data-left={i > 0 ? `#season-${i - 1}` : undefined}
+              data-right={i < seasons.length - 1 ? `#season-${i + 1}` : undefined}
               onclick={() => selectSeason(i)}
               class="rounded-full px-4 py-1.5 text-sm font-semibold outline-none transition select:ring-2 select:ring-brand {i ===
               selected

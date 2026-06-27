@@ -65,13 +65,18 @@ export async function loadHome(locale = 'en-US') {
     { bearer: token }
   )
 
-  const rows: RowDescriptor[] = (feed?.data ?? [])
+  const raw = (feed?.data ?? [])
     .filter((p: any) => ROW_TYPES.has(p?.response_type))
-    .map((p: any) => ({
+    .map((p: any, i: number) => ({
       title: p.title,
       link: p.resource_type === 'dynamic_collection' ? p.link : undefined,
-      ids: p.resource_type !== 'dynamic_collection' ? (p.ids ?? undefined) : undefined
+      ids: p.resource_type !== 'dynamic_collection' ? (p.ids ?? undefined) : undefined,
+      type: p.response_type as string,
+      order: i
     }))
+  // Pin "Continue Watching" (history) directly under the hero; everything else keeps feed order.
+  raw.sort((a: any, b: any) => (a.type === 'history' ? 0 : 1) - (b.type === 'history' ? 0 : 1) || a.order - b.order)
+  const rows: RowDescriptor[] = raw.map((r: any) => ({ title: r.title, link: r.link, ids: r.ids }))
 
   // Hero: prefer the LIVE curated carousel from /f/v1/home (HeroMediaCard, includes logos).
   let heroCards: any[] = []

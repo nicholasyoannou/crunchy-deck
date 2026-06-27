@@ -107,7 +107,7 @@ export async function resolveStream(episodeId: string) {
     seasonNumber: em.season_number ?? null,
     episodeNumber: em.episode_number ?? null,
     durationMs: em.duration_ms ?? null,
-    maturityRating: (em.maturity_ratings ?? [])[0] ?? null,
+    maturityRating: em.extended_maturity_rating?.rating ?? (em.maturity_ratings ?? [])[0] ?? null,
     maturitySystem: em.extended_maturity_rating?.system ?? null,
     descriptors: em.content_descriptors ?? []
   }

@@ -47,11 +47,11 @@
   })
 </script>
 
-<section bind:this={section} class="mb-8" class:hidden={items !== null && items.length === 0}>
-  <h2 class="mb-3 text-lg font-bold text-white/80">{row.title}</h2>
+<section bind:this={section} class="mb-5" class:hidden={items !== null && items.length === 0}>
+  <h2 class="mb-1.5 text-lg font-bold text-white/80">{row.title}</h2>
   <!-- -mx-10/px-10 full-bleeds the scroll track so the focus ring + glow have room at the
        first/last card instead of being clipped by overflow-x; cards stay aligned with the header. -->
-  <div class="-mx-10 flex gap-4 overflow-x-auto px-10 pt-3 pb-12 [scroll-padding-inline:2.5rem]">
+  <div class="-mx-10 flex gap-4 overflow-x-auto px-10 pt-2 pb-8 [scroll-padding-inline:2.5rem]">
     {#if items === null}
       {#each Array(8) as _i}
         <SkeletonCard />

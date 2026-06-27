@@ -72,6 +72,14 @@ export async function loadSeries(id: string, locale = 'en-US') {
   return { series, seasons, upNext }
 }
 
+// Prefer the locale-correct extended rating ("16") over the legacy US code ("TV-14"); render as "16+".
+function fmtRating(m: any): string | null {
+  const r = m?.extended_maturity_rating?.rating ?? (m?.maturity_ratings ?? [])[0] ?? null
+  if (!r) return null
+  const s = String(r).replace(/^[A-Za-z]+-/, '') // "TV-14" -> "14"
+  return /^\d+$/.test(s) ? `${s}+` : s // "16" -> "16+"; an already-suffixed "14+" passes through
+}
+
 // Lightweight detail for the home hero card: age rating, sub/dub, genres, and the resume episode
 // (so the hero can show a Continue/Play button). Cheaper than loadSeries (no seasons/episodes).
 export async function loadHeroDetail(id: string, locale = 'en-US') {
@@ -99,7 +107,7 @@ export async function loadHeroDetail(id: string, locale = 'en-US') {
   }
 
   return {
-    rating: ((sm.maturity_ratings ?? [])[0] ?? null) as string | null,
+    rating: fmtRating(sm),
     isDubbed: !!sm.is_dubbed,
     isSubbed: !!sm.is_subbed,
     genres: (sm.tenant_categories ?? []) as string[],

@@ -20,6 +20,19 @@
 
   let bgLoaded = $state(false)
   const title = $derived(info?.title ?? hint?.title ?? '')
+
+  // Snap the scroll container to the top when the play button takes focus, so the full hero shows.
+  function heroFocus(e: FocusEvent) {
+    let p = (e.currentTarget as HTMLElement).parentElement
+    while (p) {
+      const oy = getComputedStyle(p).overflowY
+      if (oy === 'auto' || oy === 'scroll') {
+        p.scrollTo({ top: 0, behavior: 'smooth' })
+        break
+      }
+      p = p.parentElement
+    }
+  }
   const playLabel = $derived(
     upNext && !upNext.fullyWatched
       ? `Continue · S${upNext.seasonNumber} E${upNext.episodeNumber}`
@@ -47,7 +60,7 @@
   <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-surface via-surface/60 to-transparent"></div>
   <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent"></div>
 
-  <div class="absolute bottom-8 left-10 max-w-[55%]">
+  <div class="absolute bottom-8 left-10 top-8 flex max-w-[55%] flex-col justify-end">
     {#if title}
       <h1 class="mb-3 text-4xl font-black drop-shadow-lg">{title}</h1>
     {:else}
@@ -69,6 +82,7 @@
           data-focusable
           data-focus-self
           onclick={onplay}
+          onfocus={heroFocus}
           class="inline-flex items-center gap-2 rounded-lg bg-brand px-7 py-3 font-bold text-black outline-none transition select:ring-4 select:ring-white/40"
         >
           <span class="text-lg">▶</span>

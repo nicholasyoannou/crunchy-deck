@@ -42,6 +42,21 @@
     else goto(`/series/${b.id}`)
   }
 
+  // Focusing a hero control snaps its scroll container to the very top so the WHOLE hero
+  // (art + logo) is shown — block:'nearest' otherwise leaves the hero partly scrolled off.
+  function heroFocus(e: FocusEvent) {
+    btnFocus = true
+    let p = (e.currentTarget as HTMLElement).parentElement
+    while (p) {
+      const oy = getComputedStyle(p).overflowY
+      if (oy === 'auto' || oy === 'scroll') {
+        p.scrollTo({ top: 0, behavior: 'smooth' })
+        break
+      }
+      p = p.parentElement
+    }
+  }
+
   function go(i: number) {
     if (banners.length) index = ((i % banners.length) + banners.length) % banners.length
   }
@@ -90,13 +105,13 @@
     <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-surface via-surface/60 to-transparent"></div>
     <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-surface/90 via-transparent to-transparent"></div>
 
-    <div class="absolute bottom-10 left-10 max-w-[48%]">
+    <div class="absolute bottom-10 left-10 top-8 flex max-w-[48%] flex-col justify-end">
       {#if banners[index].logo && !logoFailed.has(index)}
         <img
           src={banners[index].logo}
           alt={banners[index].title}
           onerror={() => failLogo(index)}
-          class="mb-4 max-h-28 max-w-[70%] object-contain object-left-bottom drop-shadow-lg"
+          class="mb-4 max-h-24 max-w-[70%] object-contain object-left-bottom drop-shadow-lg"
         />
       {:else}
         <h1 class="mb-3 text-4xl font-black drop-shadow-lg">{banners[index].title}</h1>
@@ -109,10 +124,10 @@
             <span class="rounded border border-white/45 px-1.5 py-0.5 text-xs font-bold text-white">{active.rating}</span>
           {/if}
           {#if subDub(active)}
-            <span class="text-white/40">◆</span><span class="font-semibold text-white/90">{subDub(active)}</span>
+            <span class="select-none text-[0.6rem] leading-none text-white/40">◆</span><span class="text-white/75">{subDub(active)}</span>
           {/if}
           {#if active.genres.length}
-            <span class="text-white/40">◆</span>
+            <span class="select-none text-[0.6rem] leading-none text-white/40">◆</span>
             <span class="text-white/75">{active.genres.slice(0, 4).map(titleCase).join(', ')}</span>
           {/if}
         </div>
@@ -126,7 +141,7 @@
           data-focusable
           data-focus-self
           onclick={play}
-          onfocus={() => (btnFocus = true)}
+          onfocus={heroFocus}
           onblur={() => (btnFocus = false)}
           class="inline-flex items-center gap-2 rounded-lg bg-brand px-7 py-3 font-bold text-black outline-none transition select:ring-4 select:ring-white/40"
         >
@@ -136,7 +151,7 @@
           id="hero-info"
           data-focusable
           onclick={() => goto(`/series/${banners[index].id}`)}
-          onfocus={() => (btnFocus = true)}
+          onfocus={heroFocus}
           onblur={() => (btnFocus = false)}
           class="inline-flex items-center gap-2 rounded-lg bg-white/15 px-5 py-3 font-semibold text-white outline-none transition select:bg-white/30 select:ring-4 select:ring-white/30"
         >Details</button>

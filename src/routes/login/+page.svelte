@@ -48,7 +48,10 @@
     const { user_code, verification_uri, device_code, expires_in, interval } = res.data
     userCode = user_code
     verifyUri = verification_uri
-    qrImg = await QRCode.toDataURL(verification_uri, { width: 240, margin: 1 })
+    // CR's /device/code returns no verification_uri, so we embed the code ourselves: scanning then
+    // opens a pre-filled activation page (sign in automatically, like the Crunchyroll TV app).
+    const qrTarget = /[?&]/.test(verification_uri) ? verification_uri : `${verification_uri}?code=${user_code}`
+    qrImg = await QRCode.toDataURL(qrTarget, { width: 176, margin: 1 })
     qrStatus = 'waiting'
     // CR quirk: expires_in is seconds, but interval is milliseconds.
     expireTimer = setTimeout(() => {
@@ -115,30 +118,30 @@
   <div class="absolute inset-0 bg-surface/50"></div>
   <div class="relative grid h-full place-items-center">
   {#if mode === 'qr'}
-    <div class="w-[460px] rounded-card bg-surface-1 p-8 text-center">
-      <h1 class="mb-1 text-2xl font-black text-brand">Sign in to Crunchyroll</h1>
-      <p class="mb-6 text-sm text-white/60">Scan the QR code with your phone</p>
+    <div class="w-[360px] rounded-card bg-surface-1 p-6 text-center">
+      <h1 class="mb-1 text-xl font-black text-brand">Sign in to Crunchyroll</h1>
+      <p class="mb-4 text-xs text-white/60">Scan the QR code with your phone</p>
 
-      <div class="mx-auto mb-4 grid h-[256px] w-[256px] place-items-center rounded-lg bg-white">
+      <div class="mx-auto mb-3 grid h-[192px] w-[192px] place-items-center rounded-lg bg-white">
         {#if qrImg}
-          <img src={qrImg} alt="Sign-in QR code" class="h-[240px] w-[240px]" />
+          <img src={qrImg} alt="Sign-in QR code" class="h-[176px] w-[176px]" />
         {:else}
           <span class="text-black/40">…</span>
         {/if}
       </div>
 
       {#if qrStatus === 'waiting'}
-        <p class="mb-3 text-sm text-white/70">
+        <p class="mb-2 text-xs text-white/70">
           Or visit <span class="font-semibold text-white">{verifyUri.replace(/^https?:\/\/(www\.)?/, '')}</span> and enter
         </p>
-        <div class="mb-4 flex justify-center gap-2">
+        <div class="mb-3 flex justify-center gap-1.5">
           {#each userCode.toUpperCase().split('') as ch}
             <span
-              class="grid h-12 w-10 place-items-center rounded-md border border-white/15 bg-surface-2 text-2xl font-bold text-white"
+              class="grid h-9 w-7 place-items-center rounded-md border border-white/15 bg-surface-2 text-lg font-bold text-white"
             >{ch}</span>
           {/each}
         </div>
-        <p class="text-xs text-white/40">Stay on this screen — you'll be signed in automatically.</p>
+        <p class="text-[11px] text-white/40">Stay on this screen — you'll be signed in automatically.</p>
       {:else if qrStatus === 'starting'}
         <p class="mb-4 text-white/60">Generating code…</p>
       {:else if qrStatus === 'expired'}
@@ -158,7 +161,7 @@
         >Try again</button>
       {/if}
 
-      <div class="mt-6 border-t border-white/10 pt-4">
+      <div class="mt-4 border-t border-white/10 pt-3">
         <button
           data-focusable
           onclick={toEmail}
