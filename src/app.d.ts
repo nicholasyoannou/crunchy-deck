@@ -56,7 +56,7 @@ interface CrBridge {
       opts?: { sortBy?: string; type?: string; categories?: string; seasonalTag?: string; n?: number; start?: number },
       locale?: string
     ): Promise<CrResult<any[]>>
-    categories(locale?: string): Promise<CrResult<{ id: string; title: string }[]>>
+    categories(locale?: string): Promise<CrResult<{ id: string; title: string; image?: string }[]>>
     seasons(locale?: string): Promise<CrResult<{ id: string; title: string }[]>>
     history(locale?: string): Promise<CrResult<any[]>>
   }
