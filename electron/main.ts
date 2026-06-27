@@ -8,6 +8,32 @@ import { CR } from './cr/client.js'
 
 const isDev = !!process.env.ELECTRON_RENDERER_URL
 
+// Steam Deck GAMING MODE runs under gamescope (a nested Wayland compositor). Electron's default GPU
+// backend (ANGLE/Vulkan) frequently fails to PRESENT frames there -> a blank/black window, even though
+// the app is running fine (Desktop/KDE mode is unaffected). Forcing ANGLE onto the plain GL path makes
+// gamescope present it. We only do this for Steam/gamescope launches so the already-working Desktop
+// launch keeps its default. Overrides: CR_GL=<gl|gles|vulkan|swiftshader>, CR_NO_GPU=1 (software).
+// These switches MUST be set before app is ready, so this runs at module load.
+function tuneGpuForGamescope() {
+  const env = process.env
+  if (env.CR_NO_GPU) {
+    app.disableHardwareAcceleration()
+    return
+  }
+  const onGamescope = !!(
+    env.GAMESCOPE_WAYLAND_DISPLAY ||
+    /gamescope/i.test(env.XDG_CURRENT_DESKTOP ?? '') ||
+    /gamescope/i.test(env.XDG_SESSION_DESKTOP ?? '')
+  )
+  const viaSteam = !!(env.SteamEnv || env.SteamGameId || env.SteamAppId || env.SteamClientLaunch)
+  if (onGamescope || viaSteam || env.CR_GL) {
+    app.commandLine.appendSwitch('use-gl', 'angle')
+    app.commandLine.appendSwitch('use-angle', env.CR_GL || 'gl')
+    app.commandLine.appendSwitch('disable-gpu-sandbox') // gamescope + the GPU sandbox can deadlock the GPU process
+  }
+}
+tuneGpuForGamescope()
+
 // The UI is laid out at a desktop 16px-root baseline, but the Steam Deck panel is 1280x800 on a
 // dense 7" screen — at DPR 1 every CSS px is one tiny physical px, so the whole UI reads as
 // minuscule held-in-hand. Apply a page zoom so text/cards/video all scale up crisply (zoom also
@@ -157,6 +183,26 @@ function createWindow(loadUrl: string) {
 
 app.whenReady().then(async () => {
   installFileLogger()
+  // Diagnostics: session/compositor + GPU backend, so a blank Gaming-Mode window is debuggable from app.log.
+  const e = process.env
+  console.log(
+    '[env]',
+    JSON.stringify({
+      sessionType: e.XDG_SESSION_TYPE,
+      desktop: e.XDG_CURRENT_DESKTOP,
+      sessionDesktop: e.XDG_SESSION_DESKTOP,
+      gamescope: e.GAMESCOPE_WAYLAND_DISPLAY,
+      wayland: e.WAYLAND_DISPLAY,
+      display: e.DISPLAY,
+      steam: !!(e.SteamEnv || e.SteamGameId || e.SteamAppId),
+      angle: app.commandLine.getSwitchValue('use-angle') || '(default)'
+    })
+  )
+  console.log('[gpu-features]', JSON.stringify(app.getGPUFeatureStatus()))
+  app
+    .getGPUInfo('basic')
+    .then((i) => console.log('[gpu]', JSON.stringify(i)))
+    .catch((err) => console.log('[gpu] info error', String(err)))
   installMediaHeaderRules()
   registerIpc()
   const url = isDev
