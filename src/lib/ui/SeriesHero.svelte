@@ -40,7 +40,7 @@
   )
 </script>
 
-<div class="relative h-[52vh] overflow-hidden">
+<div class="relative h-[58vh] overflow-hidden">
   {#if hint && !bgLoaded}
     <img src={hint.poster} alt="" class="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
   {:else if !info}

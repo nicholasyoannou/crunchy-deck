@@ -88,7 +88,7 @@
 
 {#if banners.length}
   <div
-    class="group relative mb-6 h-[60vh] overflow-hidden"
+    class="group relative mb-6 h-[66vh] overflow-hidden"
     role="group"
     onmouseenter={() => (paused = true)}
     onmouseleave={() => (paused = false)}
