@@ -1,0 +1,76 @@
+<script lang="ts">
+  import type { CrSeriesInfo, CrUpNext } from '$lib/api/types'
+  import type { SeriesHint } from '$lib/api/seriesHint'
+
+  let {
+    hint,
+    info,
+    upNext,
+    onplay
+  }: {
+    hint: SeriesHint | null
+    info: CrSeriesInfo | null
+    upNext: CrUpNext
+    onplay: () => void
+  } = $props()
+
+  let bgLoaded = $state(false)
+  const title = $derived(info?.title ?? hint?.title ?? '')
+  const playLabel = $derived(
+    upNext && !upNext.fullyWatched
+      ? `Continue · S${upNext.seasonNumber} E${upNext.episodeNumber}`
+      : 'Play'
+  )
+</script>
+
+<div class="relative h-[52vh] overflow-hidden">
+  {#if hint && !bgLoaded}
+    <img src={hint.poster} alt="" class="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
+  {:else if !info}
+    <div class="absolute inset-0 shimmer"></div>
+  {/if}
+  {#if info}
+    <img
+      src={info.background}
+      alt={info.title}
+      onload={() => (bgLoaded = true)}
+      onerror={() => (bgLoaded = true)}
+      class="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
+      style="opacity:{bgLoaded ? 1 : 0}"
+    />
+  {/if}
+
+  <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-surface via-surface/60 to-transparent"></div>
+  <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent"></div>
+
+  <div class="absolute bottom-8 left-10 max-w-[55%]">
+    {#if title}
+      <h1 class="mb-3 text-4xl font-black drop-shadow-lg">{title}</h1>
+    {:else}
+      <div class="shimmer mb-3 h-10 w-80 rounded"></div>
+    {/if}
+
+    {#if info}
+      <p class="mb-5 line-clamp-3 text-sm text-white/75 drop-shadow">{info.description}</p>
+    {:else}
+      <div class="shimmer mb-2 h-3.5 w-[28rem] max-w-full rounded"></div>
+      <div class="shimmer mb-2 h-3.5 w-[24rem] max-w-full rounded"></div>
+      <div class="shimmer mb-5 h-3.5 w-[18rem] max-w-full rounded"></div>
+    {/if}
+
+    {#if info}
+      <button
+        id="hero-play"
+        data-focusable
+        data-focus-self
+        onclick={onplay}
+        class="inline-flex items-center gap-2 rounded-lg bg-brand px-7 py-3 font-bold text-black outline-none transition select:ring-4 select:ring-white/40"
+      >
+        <span class="text-lg">▶</span>
+        {playLabel}
+      </button>
+    {:else}
+      <div class="shimmer h-12 w-44 rounded-lg"></div>
+    {/if}
+  </div>
+</div>
