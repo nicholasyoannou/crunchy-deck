@@ -88,7 +88,7 @@
 
 {#if banners.length}
   <div
-    class="group relative mb-6 h-[56vh] overflow-hidden"
+    class="group relative mb-6 h-[60vh] overflow-hidden"
     role="group"
     onmouseenter={() => (paused = true)}
     onmouseleave={() => (paused = false)}
@@ -105,7 +105,7 @@
     <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-surface via-surface/60 to-transparent"></div>
     <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-surface/90 via-transparent to-transparent"></div>
 
-    <div class="absolute bottom-10 left-10 top-8 flex max-w-[48%] flex-col justify-end">
+    <div class="absolute bottom-10 left-10 max-w-[48%]">
       {#if banners[index].logo && !logoFailed.has(index)}
         <img
           src={banners[index].logo}

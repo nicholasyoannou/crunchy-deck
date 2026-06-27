@@ -60,7 +60,7 @@
   <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-surface via-surface/60 to-transparent"></div>
   <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent"></div>
 
-  <div class="absolute bottom-8 left-10 top-8 flex max-w-[55%] flex-col justify-end">
+  <div class="absolute bottom-8 left-10 max-w-[55%]">
     {#if title}
       <h1 class="mb-3 text-4xl font-black drop-shadow-lg">{title}</h1>
     {:else}
