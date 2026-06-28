@@ -1,7 +1,9 @@
-// Steam Deck Gaming Mode (gamescope) delivers the touchscreen as a MOUSE, so a swipe is a mouse-drag
-// and a plain overflow container never scrolls from it. Pan the nearest scroll container on a mouse
-// drag. Native touch (pointerType 'touch') scrolls itself, so we only handle 'mouse' to avoid
-// double-scrolling on desktop / native-touch setups.
+// Steam Deck Gaming Mode (gamescope, --default-touch-mode 4) feeds the touchscreen through as a
+// synthetic pointer whose pointerType is 'mouse' OR — when the device type can't be detected — the
+// empty string (per the Pointer Events spec), never 'touch'. So a swipe is a pointer-drag that no
+// overflow container scrolls from natively. We pan the nearest scroll container on ANY pointer drag
+// (don't gate by pointerType — the empty-string case is exactly what we were missing); paired with
+// `touch-action: none` in app.css so the browser never steals the drag as a native scroll/gesture.
 function scrollable(el: HTMLElement | null, axis: 'x' | 'y'): HTMLElement | null {
   let p: HTMLElement | null = el
   while (p && p !== document.body) {
@@ -24,7 +26,7 @@ export function startDragScroll(): () => void {
   let hEl: HTMLElement | null = null
 
   const onDown = (e: PointerEvent) => {
-    if (e.pointerType !== 'mouse' || e.button !== 0) return
+    if (e.button !== 0) return // primary press only (touch/pen primary is also button 0)
     const t = e.target as HTMLElement
     if (t.closest('[data-player-seek]')) return // the seek bar owns its own drag
     down = true
@@ -35,7 +37,7 @@ export function startDragScroll(): () => void {
     hEl = scrollable(t, 'x')
   }
   const onMove = (e: PointerEvent) => {
-    if (!down || e.pointerType !== 'mouse') return
+    if (!down) return
     if (!dragged && Math.hypot(e.clientX - sx, e.clientY - sy) < 8) return // tap, not a drag
     dragged = true
     if (vEl) vEl.scrollTop -= e.clientY - ly

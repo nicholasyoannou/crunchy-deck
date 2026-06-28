@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation'
   import { startGamepadPoller } from '$lib/input/poller'
   import { startDragScroll } from '$lib/input/dragScroll'
+  import { startSteamChordTracker } from '$lib/input/steamChord'
   import { ensureFocus } from '$lib/input/navigate'
   import { dispatchCommand } from '$lib/input/commands'
   import { navOpen, exitOpen } from '$lib/nav/overlays'
@@ -22,7 +23,8 @@
     }
 
     const stop = startGamepadPoller()
-    const stopDrag = startDragScroll() // touch/trackpad drag-to-scroll (gamescope delivers touch as mouse)
+    const stopDrag = startDragScroll() // touch/trackpad drag-to-scroll (gamescope delivers touch as a pointer)
+    const stopSteam = startSteamChordTracker() // detect held Steam button so its chords don't act in-app
     const id = setInterval(ensureFocus, 500)
 
     const onSearch = () => goto('/search')
@@ -63,6 +65,7 @@
     return () => {
       stop()
       stopDrag()
+      stopSteam()
       clearInterval(id)
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('cr:search', onSearch)

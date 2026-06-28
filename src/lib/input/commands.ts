@@ -2,6 +2,7 @@ import { moveFocus } from './navigate'
 import type { NavCommand } from './gamepad'
 import { isNavOpen, isExitOpen, openNav, closeNav, openExit, closeExit } from '$lib/nav/overlays'
 import { getSkipSeconds } from '$lib/playback/skip'
+import { isSteamChordActive } from './steamChord'
 
 // When the video player's scrub bar is focused, Left/Right SEEK instead of moving focus.
 function playerSeek(delta: number): boolean {
@@ -16,6 +17,13 @@ function playerSeek(delta: number): boolean {
 // L1/R1 anywhere in the player skip by the user-configured interval (default 3s).
 function playerSkip(delta: number): boolean {
   if (!location.pathname.startsWith('/watch')) return false
+  // Holding the Steam button runs a Steam chord (Steam+shoulder etc.); don't let the shoulder press
+  // that leaks through also fast-forward the video. Consume it (return true) so it neither seeks nor
+  // falls through to moving focus.
+  if (isSteamChordActive()) {
+    window.cr?.log('[skip] suppressed (steam chord)')
+    return true
+  }
   window.dispatchEvent(new CustomEvent('cr:seek', { detail: delta }))
   return true
 }

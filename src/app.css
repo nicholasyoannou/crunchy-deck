@@ -61,3 +61,16 @@ body {
 * {
   cursor: none !important;
 }
+
+/* dragScroll.ts pans containers manually for every pointer type. touch-action isn't inherited, so set
+   it on every element: where REAL touch events arrive (non-Deck, or gamescope passthrough mode) this
+   stops the browser hijacking the swipe as a native pan/zoom and fighting the manual pan. On the Deck
+   itself touch is fed as a mouse/empty pointer, where touch-action is a no-op — dragScroll handles it. */
+* {
+  touch-action: none;
+}
+/* ...but let text fields keep native touch text-selection/caret gestures on real touchscreens. */
+input,
+textarea {
+  touch-action: auto;
+}
