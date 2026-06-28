@@ -200,13 +200,26 @@ function createWindow(loadUrl: string) {
     win.webContents.setVisualZoomLevelLimits(1, 1)
     win.webContents.setZoomFactor(UI_SCALE)
   })
-  win.loadURL(loadUrl)
+  // Blank-screen diagnostics: pinpoint WHERE the load dies (start -> dom-ready -> finish), surface a
+  // renderer crash / failed load / its console errors. All land in app.log.
+  win.webContents.on('did-start-loading', () => boot('did-start-loading'))
+  win.webContents.on('dom-ready', () => boot('dom-ready'))
+  win.webContents.on('did-fail-load', (_e, code, desc, url, isMainFrame) =>
+    console.log('[did-fail-load]', code, desc, url, 'main=' + isMainFrame)
+  )
+  win.webContents.on('render-process-gone', (_e, d) => console.log('[render-gone]', JSON.stringify(d)))
+  win.webContents.on('unresponsive', () => console.log('[unresponsive]'))
+  win.webContents.on('console-message', (_e, level, message, line, sourceId) =>
+    console.log('[rconsole]', level, (sourceId || '') + ':' + line, String(message).slice(0, 280))
+  )
+  win.loadURL(loadUrl).catch((err) => console.log('[loadURL] rejected', String(err)))
   return win
 }
 
 app.whenReady().then(async () => {
   installFileLogger()
   boot('app-ready')
+  app.on('child-process-gone', (_e, d) => console.log('[child-gone]', JSON.stringify(d)))
   // Diagnostics: session/compositor + GPU backend, so a blank Gaming-Mode window is debuggable from app.log.
   const e = process.env
   console.log(
