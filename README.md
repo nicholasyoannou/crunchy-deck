@@ -40,6 +40,7 @@ npx electron-builder --linux
 
 ## FAQ
 Q: Is this compatible with Windows?
+
 A: Unfortunately, due to DRM, this unofficial port supports Linux-based handhelds only. This is mainly due to the keys associated with [Crunchyroll for TIZEN](https://github.com/jhassan8/crunchyroll-tizen), and TIZEN (Samsung TV OS) being built ontop of Linux. 
 
 ## Self-update
