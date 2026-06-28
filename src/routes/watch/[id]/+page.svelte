@@ -208,6 +208,7 @@
     const manifest = sub !== 'off' && s.hardSubs[sub]?.url ? s.hardSubs[sub].url : s.manifestUrl
     try {
       await player.load(manifest, atTime > 0 ? atTime : undefined)
+      cur = atTime // reflect the start/resume position immediately so Skip Intro doesn't flash at cur=0 before the seek settles
     } catch (e: any) {
       const d = e?.detail
       const m = d ? `Shaka ${d.category}.${d.code} :: ${JSON.stringify(d.data ?? [])}` : 'Load failed: ' + (e?.code ?? e)
@@ -443,20 +444,33 @@
     syncProgress()
     goto(`/watch/${next.id}`, { replaceState: true }) // the $effect reloads; replace so Back skips the finished ep
   }
+  // When a transient control (Skip / Next) unmounts while focused, the browser drops focus to <body>
+  // and ensureFocus would then grab the FIRST focusable — the Back button. Hand focus back to Play so
+  // it never jumps to Back (e.g. Skip Intro flashes up then the playhead seeks past the intro).
+  function restoreFocusFrom(id: string) {
+    const a = document.activeElement as HTMLElement | null
+    if (!a || a === document.body || a.id === id) focusEl('pl-play')
+  }
   // auto-focus the Skip / Next button when it first appears, so a controller user just presses A
   $effect(() => {
     if (!!skipBlock && !skipShown && menu === 'none') {
       skipShown = true
       focusEl('pl-skip')
     }
-    if (!skipBlock) skipShown = false
+    if (!skipBlock && skipShown) {
+      skipShown = false
+      restoreFocusFrom('pl-skip')
+    }
   })
   $effect(() => {
     if (showNext && !nextShown && menu === 'none') {
       nextShown = true
       focusEl('pl-next')
     }
-    if (!showNext) nextShown = false
+    if (!showNext && nextShown) {
+      nextShown = false
+      restoreFocusFrom('pl-next')
+    }
   })
 
   onDestroy(() => {
