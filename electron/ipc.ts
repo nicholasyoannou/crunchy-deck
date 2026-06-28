@@ -11,6 +11,7 @@ import { loadHistory } from './cr/history.js'
 import { resolveStream, releaseStream, setPlayhead } from './cr/stream.js'
 import { skipMarkers, nextEpisode } from './cr/markers.js'
 import { requestDeviceCode, pollDeviceToken } from './cr/device.js'
+import { getMembership, getProfilePrefs, setProfilePrefs, type ProfilePrefsPatch } from './cr/account.js'
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string; authExpired?: boolean }
 
@@ -31,6 +32,9 @@ export function registerIpc() {
   ipcMain.handle('auth:status', () => wrap(() => status()))
   ipcMain.handle('auth:profiles', () => wrap(() => getProfiles()))
   ipcMain.handle('auth:switchProfile', (_e, { profile_id }: { profile_id: string }) => wrap(() => switchProfile(profile_id)))
+  ipcMain.handle('account:membership', () => wrap(() => getMembership()))
+  ipcMain.handle('account:getPrefs', () => wrap(() => getProfilePrefs()))
+  ipcMain.handle('account:setPrefs', (_e, { patch }: { patch: ProfilePrefsPatch }) => wrap(() => setProfilePrefs(patch)))
   ipcMain.handle('api:home', (_e, { locale }: { locale?: string }) => wrap(() => loadHome(locale)))
   ipcMain.handle('api:row', (_e, { desc, locale }: { desc: RowDescriptor; locale?: string }) => wrap(() => loadRow(desc, locale)))
   ipcMain.handle('api:series', (_e, { id, locale }: { id: string; locale?: string }) => wrap(() => loadSeries(id, locale)))

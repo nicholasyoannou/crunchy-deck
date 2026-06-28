@@ -1,8 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
-  import { clearHome } from '$lib/api/homeStore'
+  import { clearHome, prefetchHome } from '$lib/api/homeStore'
   import { getSkipSeconds, setSkipSeconds, SKIP_OPTIONS } from '$lib/playback/skip'
+  import { prefs, loadPrefs, savePref } from '$lib/api/prefsStore'
+  import { openPicker } from '$lib/ui/picker'
+  import {
+    pickerOptions,
+    langLabel,
+    AUDIO_LANGUAGES,
+    SUBTITLE_LANGUAGES,
+    DISPLAY_LANGUAGES,
+    SUBTITLE_NONE
+  } from '$lib/data/languages'
+  import Icon from '$lib/ui/Icon.svelte'
 
   // --- playback: L1/R1 skip interval ---
   let skip = $state(3)
@@ -12,9 +23,46 @@
   }
 
   let account = $state<{ account_id?: string; country?: string } | null>(null)
+  let membership = $state<{ premium: boolean | null } | null>(null)
   let phase = $state<'loading' | 'ready' | 'error'>('loading')
   let error = $state('')
   let busy = $state(false)
+
+  // --- account preferences (current profile, synced to CR) ---
+  function pickDisplay() {
+    const cur = $prefs?.displayLanguage ?? ''
+    openPicker({
+      title: 'Display language',
+      options: pickerOptions(DISPLAY_LANGUAGES, cur),
+      current: cur,
+      onSelect: async (code) => {
+        // savePref sets the app's content-metadata locale; drop + re-warm the cached home so its hero
+        // and row titles ("Continue Watching", …) come back in the new language.
+        if (await savePref({ displayLanguage: code })) {
+          clearHome()
+          prefetchHome()
+        }
+      }
+    })
+  }
+  function pickAudio() {
+    const cur = $prefs?.audioLanguage ?? ''
+    openPicker({
+      title: 'Audio language',
+      options: pickerOptions(AUDIO_LANGUAGES, cur),
+      current: cur,
+      onSelect: (code) => savePref({ audioLanguage: code })
+    })
+  }
+  function pickSubtitle() {
+    const cur = $prefs?.subtitleLanguage ?? ''
+    openPicker({
+      title: 'Subtitle language',
+      options: pickerOptions(SUBTITLE_LANGUAGES, cur, [SUBTITLE_NONE]),
+      current: cur,
+      onSelect: (code) => savePref({ subtitleLanguage: code })
+    })
+  }
 
   async function logout() {
     if (busy) return
@@ -72,11 +120,11 @@
     account = { account_id: s.data.account_id, country: s.data.country }
     phase = 'ready'
     skip = getSkipSeconds()
+    loadPrefs(true) // current profile's language + maturity prefs
+    window.cr.account.membership().then((r: any) => (membership = r?.ok ? r.data : { premium: null }))
     upd = await window.cr.update.getState()
     window.cr.update.onState((st) => (upd = st))
-    requestAnimationFrame(() =>
-      document.querySelector<HTMLElement>('#app-content [data-focusable]')?.focus()
-    )
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('#app-content [data-focusable]')?.focus())
   })
 </script>
 
@@ -88,9 +136,79 @@
     <div class="max-w-md space-y-6">
       <section>
         <h2 class="mb-2 text-xs font-bold uppercase tracking-wide text-white/40">Account</h2>
-        <div class="rounded-card bg-surface-1 p-4 text-sm text-white/70">
-          <div>Region: <span class="text-white">{account?.country ?? '—'}</span></div>
-          <div class="mt-1 break-all">ID: <span class="text-white/50">{account?.account_id ?? '—'}</span></div>
+        <div class="rounded-card bg-surface-1 p-4 text-sm">
+          <div class="mb-3 flex items-center justify-between">
+            <span class="text-white/70">Membership</span>
+            {#if membership?.premium === true}
+              <span class="font-bold text-brand">Crunchyroll Premium</span>
+            {:else if membership?.premium === false}
+              <span class="font-bold text-white/80">Free</span>
+            {:else}
+              <span class="text-white/40">—</span>
+            {/if}
+          </div>
+          <div class="flex items-center justify-between text-white/70">
+            <span>Region</span><span class="text-white">{account?.country ?? '—'}</span>
+          </div>
+          <div class="mt-1 flex items-center justify-between text-white/70">
+            <span>Account ID</span><span class="break-all text-white/40">{account?.account_id ?? '—'}</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="mb-2 text-xs font-bold uppercase tracking-wide text-white/40">Preferences</h2>
+        <div class="divide-y divide-white/5 overflow-hidden rounded-card bg-surface-1">
+          <button
+            id="pref-display"
+            data-focusable
+            onclick={pickDisplay}
+            class="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-bold outline-none transition select:bg-surface-2 select:shadow-[inset_0_0_0_1.5px_#F47521]">
+            <span class="text-white/80">Display language</span>
+            <span class="flex items-center gap-1.5 text-white/55">
+              {langLabel(DISPLAY_LANGUAGES, $prefs?.displayLanguage ?? '', '—')}<Icon name="chevron-right" size={16} />
+            </span>
+          </button>
+          <button
+            id="pref-audio"
+            data-focusable
+            onclick={pickAudio}
+            class="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-bold outline-none transition select:bg-surface-2 select:shadow-[inset_0_0_0_1.5px_#F47521]">
+            <span class="text-white/80">Audio language</span>
+            <span class="flex items-center gap-1.5 text-white/55">
+              {langLabel(AUDIO_LANGUAGES, $prefs?.audioLanguage ?? '', '—')}<Icon name="chevron-right" size={16} />
+            </span>
+          </button>
+          <button
+            id="pref-subtitle"
+            data-focusable
+            onclick={pickSubtitle}
+            class="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-bold outline-none transition select:bg-surface-2 select:shadow-[inset_0_0_0_1.5px_#F47521]">
+            <span class="text-white/80">Subtitle language</span>
+            <span class="flex items-center gap-1.5 text-white/55">
+              {langLabel(SUBTITLE_LANGUAGES, $prefs?.subtitleLanguage ?? '', 'None')}<Icon name="chevron-right" size={16} />
+            </span>
+          </button>
+        </div>
+        <p class="mt-2 px-1 text-xs text-white/35">Applied to every video and synced to your Crunchyroll account.</p>
+      </section>
+
+      <section>
+        <h2 class="mb-2 text-xs font-bold uppercase tracking-wide text-white/40">Content restrictions</h2>
+        <div class="divide-y divide-white/5 overflow-hidden rounded-card bg-surface-1">
+          <button
+            id="cr-mature"
+            data-focusable
+            onclick={() => savePref({ matureContent: !$prefs?.matureContent })}
+            class="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-bold outline-none transition select:bg-surface-2 select:shadow-[inset_0_0_0_1.5px_#F47521]">
+            <span class="min-w-0">
+              <span class="block text-white/80">Mature content</span>
+              <span class="block text-xs font-medium text-white/35">Show 17+ titles</span>
+            </span>
+            <span class="relative h-6 w-11 shrink-0 rounded-full transition-colors {$prefs?.matureContent ? 'bg-brand' : 'bg-surface-3'}">
+              <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all {$prefs?.matureContent ? 'left-[1.375rem]' : 'left-0.5'}"></span>
+            </span>
+          </button>
         </div>
       </section>
 

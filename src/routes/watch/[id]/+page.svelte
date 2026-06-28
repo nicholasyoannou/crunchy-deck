@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
+  import { get } from 'svelte/store'
   import { page } from '$app/stores'
   import { goto } from '$app/navigation'
   import { authGuard } from '$lib/api/guard'
+  import { prefs } from '$lib/api/prefsStore'
   import shaka from 'shaka-player/dist/shaka-player.compiled.js'
 
   type Stream = {
@@ -188,6 +190,17 @@
     }
     s = res.data
     audioGuid = guid
+    // First load of an episode: honour the profile's language prefs. Audio = the version whose locale
+    // matches (re-resolve that guid if it isn't the one we opened); subtitle = the preferred soft-sub
+    // when this stream offers it, else stay off. Manual audio/sub switches pass initial=false and skip this.
+    if (initial) {
+      const p = get(prefs)
+      if (p?.audioLanguage) {
+        const v = s.versions.find((x) => x.audio_locale === p.audioLanguage)
+        if (v && v.guid !== guid) return doLoad(v.guid, sub, atTime, true)
+      }
+      if (p?.subtitleLanguage && s.hardSubs[p.subtitleLanguage]) sub = p.subtitleLanguage
+    }
     curSub = sub
     const manifest = sub !== 'off' && s.hardSubs[sub]?.url ? s.hardSubs[sub].url : s.manifestUrl
     try {

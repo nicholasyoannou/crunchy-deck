@@ -98,6 +98,9 @@ const MIME: Record<string, string> = {
   '.webmanifest': 'application/manifest+json'
 }
 
+// Fixed loopback port for the bundled SPA so the origin (and its localStorage) is stable across launches.
+const STABLE_PORT = 43547
+
 function serveStatic(dir: string): Promise<number> {
   const server = http.createServer((req, res) => {
     let pathname = '/'
@@ -118,7 +121,18 @@ function serveStatic(dir: string): Promise<number> {
       res.end('not found')
     }
   })
-  return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve((server.address() as any).port)))
+  // Listen on a STABLE port so the page origin (http://127.0.0.1:PORT) is the same every launch.
+  // localStorage / IndexedDB are scoped to the exact origin, so a random port (listen 0) silently wiped
+  // every persisted setting (e.g. the skip interval) on each restart. Fall back to a random port only if
+  // the fixed one is taken — rare, since the quit teardown frees it (settings just won't persist that run).
+  return new Promise((resolve) => {
+    const onUp = () => resolve((server.address() as { port: number }).port)
+    server.once('error', (e: NodeJS.ErrnoException) => {
+      console.log('[serve] fixed port unavailable:', e.code, '— using a random port (settings may reset this run)')
+      server.listen(0, '127.0.0.1', onUp)
+    })
+    server.listen(STABLE_PORT, '127.0.0.1', onUp)
+  })
 }
 
 // We serve the app over http://127.0.0.1, so Chromium attaches a Referer to CDN media requests. CR's

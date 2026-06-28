@@ -142,6 +142,7 @@
           id="hero-play"
           data-focusable
           data-focus-self
+          data-scroll-top
           onclick={play}
           onfocus={heroFocus}
           onblur={() => (btnFocus = false)}
@@ -152,6 +153,7 @@
         <button
           id="hero-info"
           data-focusable
+          data-scroll-top
           onclick={() => goto(`/series/${banners[index].id}`)}
           onfocus={heroFocus}
           onblur={() => (btnFocus = false)}

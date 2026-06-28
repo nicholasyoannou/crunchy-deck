@@ -50,8 +50,22 @@ export function moveFocus(direction: Direction): boolean {
   const target = document.getElementById(targetId)
   if (!target) return false
   target.focus()
-  // optional-chain: jsdom (tests) has no scrollIntoView; browsers do
-  target.scrollIntoView?.({ block: 'nearest', inline: 'center', behavior: 'smooth' })
+  if (target.hasAttribute('data-scroll-top')) {
+    // Hero controls: reveal the WHOLE hero by snapping the nearest scroll container to the very top,
+    // rather than bringing the button into 'nearest' view (which leaves the hero art clipped).
+    let p = target.parentElement
+    while (p && p !== document.body) {
+      const oy = getComputedStyle(p).overflowY
+      if (oy === 'auto' || oy === 'scroll') {
+        p.scrollTo({ top: 0, behavior: 'smooth' })
+        break
+      }
+      p = p.parentElement
+    }
+  } else {
+    // optional-chain: jsdom (tests) has no scrollIntoView; browsers do
+    target.scrollIntoView?.({ block: 'nearest', inline: 'center', behavior: 'smooth' })
+  }
   return true
 }
 

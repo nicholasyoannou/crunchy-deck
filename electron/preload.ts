@@ -11,11 +11,19 @@ const launchedViaSteam = !!(
   env.SteamOverlayGameId
 )
 
+// The content-metadata locale used by every api:* call when the caller doesn't pass one. Defaults to
+// en-US until the renderer learns the current profile's display-language pref and calls setLocale, so
+// titles/descriptions come back in the chosen language.
+let appLocale = 'en-US'
+
 contextBridge.exposeInMainWorld('cr', {
   version: process.versions.electron,
   steam: launchedViaSteam,
   log: (m: string) => ipcRenderer.send('cr:log', m),
   quit: () => ipcRenderer.send('app:quit'),
+  setLocale: (l: string) => {
+    if (l) appLocale = l
+  },
   auth: {
     login: (username: string, password: string) => ipcRenderer.invoke('auth:login', { username, password }),
     logout: () => ipcRenderer.invoke('auth:logout'),
@@ -23,25 +31,30 @@ contextBridge.exposeInMainWorld('cr', {
     profiles: () => ipcRenderer.invoke('auth:profiles'),
     switchProfile: (profile_id: string) => ipcRenderer.invoke('auth:switchProfile', { profile_id })
   },
+  account: {
+    membership: () => ipcRenderer.invoke('account:membership'),
+    getPrefs: () => ipcRenderer.invoke('account:getPrefs'),
+    setPrefs: (patch: Record<string, unknown>) => ipcRenderer.invoke('account:setPrefs', { patch })
+  },
   api: {
-    home: (locale = 'en-US') => ipcRenderer.invoke('api:home', { locale }),
-    row: (desc: { title: string; link?: string; ids?: string[] }, locale = 'en-US') =>
+    home: (locale = appLocale) => ipcRenderer.invoke('api:home', { locale }),
+    row: (desc: { title: string; link?: string; ids?: string[] }, locale = appLocale) =>
       ipcRenderer.invoke('api:row', { desc, locale }),
-    series: (id: string, locale = 'en-US') => ipcRenderer.invoke('api:series', { id, locale }),
-    heroDetail: (id: string, locale = 'en-US') => ipcRenderer.invoke('api:heroDetail', { id, locale }),
-    episodes: (seasonId: string, locale = 'en-US') => ipcRenderer.invoke('api:episodes', { seasonId, locale }),
-    search: (query: string, locale = 'en-US') => ipcRenderer.invoke('api:search', { query, locale }),
-    watchlist: (locale = 'en-US') => ipcRenderer.invoke('api:watchlist', { locale }),
-    watchlistCheck: (contentId: string, locale = 'en-US') => ipcRenderer.invoke('api:watchlistCheck', { contentId, locale }),
-    watchlistAdd: (contentId: string, locale = 'en-US') => ipcRenderer.invoke('api:watchlistAdd', { contentId, locale }),
-    watchlistRemove: (contentId: string, locale = 'en-US') => ipcRenderer.invoke('api:watchlistRemove', { contentId, locale }),
+    series: (id: string, locale = appLocale) => ipcRenderer.invoke('api:series', { id, locale }),
+    heroDetail: (id: string, locale = appLocale) => ipcRenderer.invoke('api:heroDetail', { id, locale }),
+    episodes: (seasonId: string, locale = appLocale) => ipcRenderer.invoke('api:episodes', { seasonId, locale }),
+    search: (query: string, locale = appLocale) => ipcRenderer.invoke('api:search', { query, locale }),
+    watchlist: (locale = appLocale) => ipcRenderer.invoke('api:watchlist', { locale }),
+    watchlistCheck: (contentId: string, locale = appLocale) => ipcRenderer.invoke('api:watchlistCheck', { contentId, locale }),
+    watchlistAdd: (contentId: string, locale = appLocale) => ipcRenderer.invoke('api:watchlistAdd', { contentId, locale }),
+    watchlistRemove: (contentId: string, locale = appLocale) => ipcRenderer.invoke('api:watchlistRemove', { contentId, locale }),
     browse: (
       opts: { sortBy?: string; type?: string; categories?: string; seasonalTag?: string; n?: number; start?: number } = {},
-      locale = 'en-US'
+      locale = appLocale
     ) => ipcRenderer.invoke('api:browse', { opts, locale }),
-    categories: (locale = 'en-US') => ipcRenderer.invoke('api:categories', { locale }),
-    seasons: (locale = 'en-US') => ipcRenderer.invoke('api:seasons', { locale }),
-    history: (locale = 'en-US') => ipcRenderer.invoke('api:history', { locale })
+    categories: (locale = appLocale) => ipcRenderer.invoke('api:categories', { locale }),
+    seasons: (locale = appLocale) => ipcRenderer.invoke('api:seasons', { locale }),
+    history: (locale = appLocale) => ipcRenderer.invoke('api:history', { locale })
   },
   device: {
     code: () => ipcRenderer.invoke('device:code'),
@@ -52,7 +65,7 @@ contextBridge.exposeInMainWorld('cr', {
     release: (contentId: string, videoToken: string) => ipcRenderer.invoke('api:streamRelease', { contentId, videoToken }),
     setPlayhead: (contentId: string, playhead: number) => ipcRenderer.invoke('api:playhead', { contentId, playhead }),
     markers: (id: string) => ipcRenderer.invoke('api:skipMarkers', { id }),
-    nextEpisode: (id: string, locale = 'en-US') => ipcRenderer.invoke('api:nextEpisode', { id, locale })
+    nextEpisode: (id: string, locale = appLocale) => ipcRenderer.invoke('api:nextEpisode', { id, locale })
   },
   update: {
     onAvailable: (cb: (d: { version: string }) => void) => ipcRenderer.on('update:available', (_e, d) => cb(d)),

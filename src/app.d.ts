@@ -7,6 +7,12 @@ interface CrBridge {
   steam: boolean // launched through Steam (Steam OSK available) vs bare (use in-app keyboard)
   log(m: string): void
   quit(): void // force-exit the app (full teardown; graceful quit hangs under gamescope)
+  setLocale(locale: string): void // content-metadata locale for subsequent api:* calls (follows the display-language pref)
+  account: {
+    membership(): Promise<CrResult<{ premium: boolean | null; benefits: string[] }>>
+    getPrefs(): Promise<CrResult<CrProfilePrefs>>
+    setPrefs(patch: Partial<CrProfilePrefs>): Promise<CrResult<{ ok: true }>>
+  }
   auth: {
     login(username: string, password: string): Promise<CrResult<{ authenticated: boolean; account_id?: string; country?: string }>>
     logout(): Promise<CrResult<void>>
@@ -124,6 +130,14 @@ declare global {
     lastUpdated: { version: string; at: number } | null
     currentVersion: string
     packaged: boolean
+  }
+  type CrProfilePrefs = {
+    audioLanguage: string
+    subtitleLanguage: string
+    displayLanguage: string
+    matureContent: boolean
+    closedCaptions: boolean
+    audioDescription: boolean
   }
   type SkipBlock = { start: number; end: number; type?: string }
   type NextEpisode = {

@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { goto } from '$app/navigation'
   import { prefetchHome, clearHome } from '$lib/api/homeStore'
+  import { loadPrefs } from '$lib/api/prefsStore'
 
   type Prof = {
     profile_id: string
@@ -36,6 +37,7 @@
       return
     }
     clearHome() // the home feed is profile-specific
+    await loadPrefs(true) // set this profile's display-language locale BEFORE warming home (so it localises)
     prefetchHome() // warm the chosen profile's home while we navigate
     goto('/home')
   }
@@ -58,6 +60,7 @@
       const sw = await window.cr.auth.switchProfile(profiles[0].profile_id)
       if (sw.ok) {
         clearHome()
+        await loadPrefs(true)
         prefetchHome()
         goto('/home')
         return

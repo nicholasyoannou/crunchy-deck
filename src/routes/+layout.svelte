@@ -8,8 +8,11 @@
   import { ensureFocus } from '$lib/input/navigate'
   import { dispatchCommand } from '$lib/input/commands'
   import { navOpen, exitOpen } from '$lib/nav/overlays'
+  import { picker } from '$lib/ui/picker'
+  import { loadPrefs } from '$lib/api/prefsStore'
   import NavMenu from '$lib/ui/NavMenu.svelte'
   import ExitConfirm from '$lib/ui/ExitConfirm.svelte'
+  import LanguagePicker from '$lib/ui/LanguagePicker.svelte'
   import UpdateBanner from '$lib/ui/UpdateBanner.svelte'
 
   let { children } = $props()
@@ -25,6 +28,7 @@
     const stop = startGamepadPoller()
     const stopDrag = startDragScroll() // touch/trackpad drag-to-scroll (gamescope delivers touch as a pointer)
     const stopSteam = startSteamChordTracker() // detect held Steam button so its chords don't act in-app
+    loadPrefs() // current profile's CR prefs -> playback defaults + content-metadata locale (no-op if signed out)
     const id = setInterval(ensureFocus, 500)
 
     const onSearch = () => goto('/search')
@@ -74,9 +78,10 @@
   })
 </script>
 
-<div id="app-content" inert={$navOpen || $exitOpen}>
+<div id="app-content" inert={$navOpen || $exitOpen || $picker.open}>
   {@render children()}
 </div>
 <NavMenu />
 <ExitConfirm />
+<LanguagePicker />
 <UpdateBanner />
