@@ -18,26 +18,33 @@ const isDev = !!process.env.ELECTRON_RENDERER_URL
 const T0 = Date.now()
 const boot = (stage: string) => console.log(`[boot] ${stage} +${Date.now() - T0}ms`)
 
-// THE Gaming-Mode launch fix: Chromium's seccomp-bpf sandbox conflicts with gamescope/Steam's own
-// kernel sandboxing, so under gamescope the renderer hangs for minutes (or never launches) before
-// timing out — Desktop mode is unaffected. --no-sandbox resolves it. Safe here: a single-user AppImage
-// that only ever loads its own bundled content. (Confirmed on the Deck; must be set before app ready.)
-app.commandLine.appendSwitch('no-sandbox')
+// Gaming Mode runs under gamescope; Desktop Mode is plain KDE Wayland. Detect it once — the two fixes
+// below are needed ONLY under gamescope and actively BREAK the Desktop launch (blank window).
+const onGamescope = !!(
+  process.env.GAMESCOPE_WAYLAND_DISPLAY ||
+  /gamescope/i.test(process.env.XDG_CURRENT_DESKTOP ?? '') ||
+  /gamescope/i.test(process.env.XDG_SESSION_DESKTOP ?? '')
+)
 
-// Steam Deck GPU is a trap for Electron. PROVEN from the Deck's app.log: in BOTH gamescope (Gaming Mode)
-// AND KDE Wayland (Desktop) the GL context comes up as gl=none — no live GL ever initialises. With
-// hardware "enabled" the renderer waits on that dead GPU/compositor, `did-finish-load` never fires, and
-// the window stays BLANK (this is the Desktop AND Gaming-Mode blank-screen bug). Pure SOFTWARE render
-// always paints + loads (the only mode that has ever worked here), so default to it everywhere.
-// CR_GL=<gl|gles|vulkan> opts into a real hardware-accel attempt. Must run before app ready (module load).
+// Gaming-Mode launch fix: Chromium's seccomp-bpf sandbox conflicts with gamescope/Steam's kernel
+// sandboxing → the renderer hangs for minutes under gamescope. --no-sandbox resolves it. BUT on the
+// KDE Wayland Desktop the sandbox is fine and --no-sandbox instead BREAKS the renderer (the window
+// opens but the page never finishes loading → blank screen). So gate it to gamescope only; the Desktop
+// keeps its sandbox. (User-confirmed: Desktop worked before this Gaming-Mode tuning landed.)
+if (onGamescope) app.commandLine.appendSwitch('no-sandbox')
+
+// GPU: under gamescope the GL path is a trap (gl=none + crash-retry → blank / multi-minute launch), so
+// force software there. On the Desktop the hardware GPU works (it did before this tuning), so leave it.
+// CR_GL=<gl|gles|vulkan> opts into a hardware-accel attempt anywhere; CR_NO_GPU forces software. Must
+// run before app ready (module load).
 function tuneGpuForGamescope() {
   const env = process.env
   if (env.CR_GL) {
     app.commandLine.appendSwitch('use-gl', 'angle')
     app.commandLine.appendSwitch('use-angle', env.CR_GL) // experiment with a real backend (e.g. vulkan)
     app.commandLine.appendSwitch('disable-gpu-sandbox')
-  } else {
-    app.disableHardwareAcceleration() // software everywhere — the only path that paints on this hardware
+  } else if (env.CR_NO_GPU || onGamescope) {
+    app.disableHardwareAcceleration() // software under gamescope; Desktop uses the hardware GPU
   }
 }
 tuneGpuForGamescope()
