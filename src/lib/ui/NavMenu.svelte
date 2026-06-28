@@ -49,7 +49,7 @@
     transition:fly={{ x: -288, duration: 240, easing: cubicOut }}>
     <!-- header -->
     <div class="flex shrink-0 items-center gap-3 px-5 pb-4 pt-6">
-      <div class="grid h-8 w-8 place-items-center rounded-lg bg-brand text-base font-black text-[#3a1c08]">C</div>
+      <img src="/crunchyroll.svg" alt="" class="h-8 w-8 shrink-0" />
       <div class="text-base font-extrabold tracking-tight text-white">Crunchy Deck</div>
     </div>
 
