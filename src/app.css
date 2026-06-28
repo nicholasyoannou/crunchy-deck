@@ -74,3 +74,17 @@ input,
 textarea {
   touch-action: auto;
 }
+
+/* dragScroll pans on a pointer-drag, so a swipe would otherwise trigger the browser's own drag
+   behaviours — selecting text and dragging images/links around. Suppress both globally; keep text
+   selection in inputs so the search box still works. */
+* {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}

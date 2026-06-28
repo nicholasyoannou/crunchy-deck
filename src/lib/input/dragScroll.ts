@@ -58,16 +58,21 @@ export function startDragScroll(): () => void {
     }
   }
 
+  // Belt to the CSS: kill any native drag a pan might start (image/link/selection) so a swipe scrolls.
+  const onDragStart = (e: DragEvent) => e.preventDefault()
+
   window.addEventListener('pointerdown', onDown, true)
   window.addEventListener('pointermove', onMove, true)
   window.addEventListener('pointerup', onUp, true)
   window.addEventListener('pointercancel', onUp, true)
   window.addEventListener('click', onClick, true)
+  window.addEventListener('dragstart', onDragStart, true)
   return () => {
     window.removeEventListener('pointerdown', onDown, true)
     window.removeEventListener('pointermove', onMove, true)
     window.removeEventListener('pointerup', onUp, true)
     window.removeEventListener('pointercancel', onUp, true)
     window.removeEventListener('click', onClick, true)
+    window.removeEventListener('dragstart', onDragStart, true)
   }
 }
