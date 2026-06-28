@@ -5,7 +5,7 @@ An unofficial controller-first Crunchyroll client made for the Steam Deck. Sign 
 
 ![homeScreen.png](https://raw.githubusercontent.com/nicholasyoannou/crunchy-deck/main/docs/homeScreen.png)
 
-## How to install on the Steam Deck
+## How to install on the Steam Deck (or other Linux-based handhelds)
 1. Download the latest AppImage from [Releases](https://github.com/nicholasyoannou/crunchy-deck/releases).
 2. (Optional) Move the application somewhere permanent.
 3. Add the AppImage to Steam, or your desired launcher.
@@ -37,6 +37,10 @@ pnpm dev
 pnpm build:web && pnpm build:electron
 npx electron-builder --linux
 ```
+
+## FAQ
+Q: Is this compatible with Windows?
+A: Unfortunately, due to DRM, this unofficial port supports Linux-based handhelds only. This is mainly due to the keys associated with [Crunchyroll for TIZEN](https://github.com/jhassan8/crunchyroll-tizen), and TIZEN (Samsung TV OS) being built ontop of Linux. 
 
 ## Self-update
 
