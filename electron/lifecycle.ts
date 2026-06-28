@@ -1,11 +1,31 @@
-import { app } from 'electron'
+import { BrowserWindow } from 'electron'
 import { readdirSync, readFileSync } from 'node:fs'
 
-// Steam's reaper waits for the ENTIRE process tree. Electron's GPU/zygote children can outlive the
-// main process (esp. under gamescope), keeping the reaper — and Steam's "running" state — alive, so
-// the next launch hangs and the stale signed-in instance races the refresh token. app.quit() and even
-// app.exit(0) leave those children; explicitly SIGKILL every descendant first, then exit.
-export function killTreeAndExit(): void {
+// FAST + COMPLETE teardown. Why not app.quit()/app.exit()?
+//  - app.quit() runs Electron's graceful shutdown, which under gamescope stalls for SECONDS waiting on
+//    the GPU/network service — that's the "obscene quit time".
+//  - Even app.exit(0) leaves the GPU/zygote children alive; Steam's reaper then waits on the whole
+//    process tree, so the NEXT launch hangs and the stale signed-in instance races the refresh token.
+//  - A BrowserWindow left undestroyed leaves a surface gamescope keeps expecting → hung session.
+// So: destroy windows (free the surface), SIGKILL every descendant + our process group, then a hard
+// process.exit (no graceful path to stall on). Wired to app:quit, window-all-closed, SIGTERM, SIGINT.
+export function killTreeAndExit(reason = 'quit'): void {
+  console.log('[quit]', reason)
+
+  // 1) Destroy windows synchronously so gamescope releases their surfaces immediately.
+  try {
+    for (const w of BrowserWindow.getAllWindows()) {
+      try {
+        w.destroy()
+      } catch {
+        /* already gone */
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  // 2) SIGKILL the whole descendant tree (renderers, GPU, zygote, utility) so nothing outlives us.
   try {
     const childrenOf = new Map<number, number[]>()
     for (const d of readdirSync('/proc')) {
@@ -38,5 +58,16 @@ export function killTreeAndExit(): void {
   } catch {
     /* /proc unavailable (non-Linux) */
   }
-  app.exit(0)
+
+  // 3) SIGKILL our own process group too — catches any child that re-parented or spawned mid-scan.
+  // No-op (ESRCH) if we aren't the group leader; the tree walk above already covered descendants.
+  try {
+    process.kill(-process.pid, 'SIGKILL')
+  } catch {
+    /* not the group leader */
+  }
+
+  // 4) Hard exit. process.exit (not app.exit) skips Electron's graceful shutdown, which is the part
+  // that stalls under gamescope. The children are already dead, so there's nothing to clean up.
+  process.exit(0)
 }

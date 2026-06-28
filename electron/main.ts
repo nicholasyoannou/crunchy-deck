@@ -240,7 +240,12 @@ app.whenReady().then(async () => {
   })
 })
 
-ipcMain.on('app:quit', killTreeAndExit)
+// Every quit path funnels through killTreeAndExit (fast, complete teardown). Crucially that includes
+// SIGTERM — how Steam's "Exit game" / closing from the overlay stops us; without this handler Electron
+// runs its slow graceful shutdown and quitting takes many seconds under gamescope.
+ipcMain.on('app:quit', () => killTreeAndExit('ipc'))
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') killTreeAndExit()
+  if (process.platform !== 'darwin') killTreeAndExit('window-all-closed')
 })
+process.on('SIGTERM', () => killTreeAndExit('sigterm'))
+process.on('SIGINT', () => killTreeAndExit('sigint'))
