@@ -24,29 +24,20 @@ const boot = (stage: string) => console.log(`[boot] ${stage} +${Date.now() - T0}
 // that only ever loads its own bundled content. (Confirmed on the Deck; must be set before app ready.)
 app.commandLine.appendSwitch('no-sandbox')
 
-// Steam Deck GAMING MODE runs under gamescope. The GPU path there is a trap: default ANGLE renders a
-// BLANK window, while forcing ANGLE-GL renders (software fallback) but the GPU process crash-retries
-// first, giving MULTI-MINUTE launches (Desktop/KDE is unaffected — it falls back fast). Since we end up
-// software-rendered either way (gl=none confirmed in the logs), just go straight to software under
-// gamescope: the window always paints AND launch is fast (no crash-retry). CR_GL=<gl|gles|vulkan>
-// overrides this to try real hardware accel; CR_NO_GPU forces software anywhere.
-// Must run before app is ready, so this is at module load.
+// Steam Deck GPU is a trap for Electron. PROVEN from the Deck's app.log: in BOTH gamescope (Gaming Mode)
+// AND KDE Wayland (Desktop) the GL context comes up as gl=none — no live GL ever initialises. With
+// hardware "enabled" the renderer waits on that dead GPU/compositor, `did-finish-load` never fires, and
+// the window stays BLANK (this is the Desktop AND Gaming-Mode blank-screen bug). Pure SOFTWARE render
+// always paints + loads (the only mode that has ever worked here), so default to it everywhere.
+// CR_GL=<gl|gles|vulkan> opts into a real hardware-accel attempt. Must run before app ready (module load).
 function tuneGpuForGamescope() {
   const env = process.env
-  const onGamescope = !!(
-    env.GAMESCOPE_WAYLAND_DISPLAY ||
-    /gamescope/i.test(env.XDG_CURRENT_DESKTOP ?? '') ||
-    /gamescope/i.test(env.XDG_SESSION_DESKTOP ?? '')
-  )
   if (env.CR_GL) {
     app.commandLine.appendSwitch('use-gl', 'angle')
     app.commandLine.appendSwitch('use-angle', env.CR_GL) // experiment with a real backend (e.g. vulkan)
     app.commandLine.appendSwitch('disable-gpu-sandbox')
-  } else if (env.CR_NO_GPU || onGamescope) {
-    // ONLY under gamescope (Gaming Mode). Must NOT key off Steam env vars: Desktop Mode launches through
-    // Steam set SteamGameId/etc. too, and software-rendering there gives a BLANK window (KDE/Wayland
-    // presents hardware fine). So: Gaming Mode -> software (reliable + fast); Desktop Mode -> hardware GPU.
-    app.disableHardwareAcceleration()
+  } else {
+    app.disableHardwareAcceleration() // software everywhere — the only path that paints on this hardware
   }
 }
 tuneGpuForGamescope()
