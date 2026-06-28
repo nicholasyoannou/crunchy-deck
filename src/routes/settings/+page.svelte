@@ -4,6 +4,7 @@
   import { clearHome, prefetchHome } from '$lib/api/homeStore'
   import { getSkipSeconds, setSkipSeconds, SKIP_OPTIONS } from '$lib/playback/skip'
   import { getDefaultQuality, setDefaultQuality, QUALITY_OPTIONS, type Quality } from '$lib/playback/quality'
+  import { getNextEpStyle, setNextEpStyle, type NextEpStyle } from '$lib/playback/nextEp'
   import {
     getSkipBackBtn,
     getSkipForwardBtn,
@@ -39,6 +40,13 @@
   function chooseQuality(q: Quality) {
     quality = q
     setDefaultQuality(q)
+  }
+
+  // --- playback: next-up card style ---
+  let nextStyle = $state<NextEpStyle>('full')
+  function chooseNextStyle(s: NextEpStyle) {
+    nextStyle = s
+    setNextEpStyle(s)
   }
 
   // --- controls: rebindable skip buttons (press a gamepad button to capture it) ---
@@ -170,6 +178,7 @@
     phase = 'ready'
     skip = getSkipSeconds()
     quality = getDefaultQuality()
+    nextStyle = getNextEpStyle()
     skipBackBtn = getSkipBackBtn()
     skipForwardBtn = getSkipForwardBtn()
     loadPrefs(true) // current profile's language + maturity prefs
@@ -305,6 +314,32 @@
                 >
               {/each}
             </div>
+          </div>
+          <div>
+            <div class="mb-2.5 text-white/70">Next-up card</div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                id="nextstyle-full"
+                data-focusable
+                data-focus-self
+                onclick={() => chooseNextStyle('full')}
+                class="rounded px-3 py-2 font-bold outline-none transition select:ring-2 select:ring-brand {nextStyle ===
+                'full'
+                  ? 'bg-brand text-black'
+                  : 'bg-surface-2 text-white/80'}">Full</button
+              >
+              <button
+                id="nextstyle-minimal"
+                data-focusable
+                data-focus-self
+                onclick={() => chooseNextStyle('minimal')}
+                class="rounded px-3 py-2 font-bold outline-none transition select:ring-2 select:ring-brand {nextStyle ===
+                'minimal'
+                  ? 'bg-brand text-black'
+                  : 'bg-surface-2 text-white/80'}">Minimal</button
+              >
+            </div>
+            <p class="mt-1.5 text-xs text-white/35">Full = thumbnail + title · Minimal = just "Next episode" + number.</p>
           </div>
         </div>
       </section>

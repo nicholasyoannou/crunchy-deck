@@ -6,6 +6,7 @@
   import { authGuard } from '$lib/api/guard'
   import { prefs } from '$lib/api/prefsStore'
   import { resolveQualityHeight } from '$lib/playback/quality'
+  import { getNextEpStyle, type NextEpStyle } from '$lib/playback/nextEp'
   import shaka from 'shaka-player/dist/shaka-player.compiled.js'
 
   type Stream = {
@@ -69,6 +70,7 @@
   // skip-intro / next-episode (markers in seconds; next = the following episode or null)
   let markers = $state<{ intro: SkipBlock | null; credits: SkipBlock | null; recap: SkipBlock | null; preview: SkipBlock | null } | null>(null)
   let next = $state<NextEpisode | null>(null)
+  let nextStyle = $state<NextEpStyle>('full') // 'full' card vs 'minimal' (just "Next episode" + number)
   let skipShown = false
   let nextShown = false
 
@@ -340,6 +342,7 @@
   }
 
   onMount(async () => {
+    nextStyle = getNextEpStyle()
     if (!window.cr) {
       status = 'error'
       errorMsg = 'Preload bridge unavailable.'
@@ -776,13 +779,22 @@
       onclick={playNext}
       class="absolute bottom-28 right-8 z-30 flex items-center gap-3 rounded-lg bg-surface-1/95 p-3 pr-5 text-left shadow-2xl outline-none ring-1 ring-white/10 backdrop-blur transition select:ring-4 select:ring-brand"
     >
-      {#if next.thumbnail}<img src={next.thumbnail} alt="" class="h-12 w-20 rounded object-cover" />{/if}
-      <div class="min-w-0">
-        <div class="text-xs font-semibold uppercase tracking-wide text-white/50">Next episode ⟩⟩</div>
-        <div class="line-clamp-1 text-sm font-bold text-white">
-          {#if next.episodeNumber}E{next.episodeNumber} · {/if}{next.title}
+      {#if nextStyle === 'minimal'}
+        <div class="min-w-0 px-1">
+          <div class="text-xs font-semibold uppercase tracking-wide text-white/50">Next episode ⟩⟩</div>
+          <div class="text-sm font-bold text-white">
+            {#if next.episodeNumber}Episode {next.episodeNumber}{:else}Play next{/if}
+          </div>
         </div>
-      </div>
+      {:else}
+        {#if next.thumbnail}<img src={next.thumbnail} alt="" class="h-12 w-20 rounded object-cover" />{/if}
+        <div class="min-w-0">
+          <div class="text-xs font-semibold uppercase tracking-wide text-white/50">Next episode ⟩⟩</div>
+          <div class="line-clamp-1 text-sm font-bold text-white">
+            {#if next.episodeNumber}E{next.episodeNumber} · {/if}{next.title}
+          </div>
+        </div>
+      {/if}
     </button>
   {/if}
 
