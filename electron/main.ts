@@ -38,13 +38,15 @@ function tuneGpuForGamescope() {
     /gamescope/i.test(env.XDG_CURRENT_DESKTOP ?? '') ||
     /gamescope/i.test(env.XDG_SESSION_DESKTOP ?? '')
   )
-  const viaSteam = !!(env.SteamEnv || env.SteamGameId || env.SteamAppId || env.SteamClientLaunch)
   if (env.CR_GL) {
     app.commandLine.appendSwitch('use-gl', 'angle')
     app.commandLine.appendSwitch('use-angle', env.CR_GL) // experiment with a real backend (e.g. vulkan)
     app.commandLine.appendSwitch('disable-gpu-sandbox')
-  } else if (env.CR_NO_GPU || onGamescope || viaSteam) {
-    app.disableHardwareAcceleration() // software render — reliable + fast under gamescope
+  } else if (env.CR_NO_GPU || onGamescope) {
+    // ONLY under gamescope (Gaming Mode). Must NOT key off Steam env vars: Desktop Mode launches through
+    // Steam set SteamGameId/etc. too, and software-rendering there gives a BLANK window (KDE/Wayland
+    // presents hardware fine). So: Gaming Mode -> software (reliable + fast); Desktop Mode -> hardware GPU.
+    app.disableHardwareAcceleration()
   }
 }
 tuneGpuForGamescope()
