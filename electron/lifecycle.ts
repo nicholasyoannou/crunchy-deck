@@ -7,8 +7,9 @@ import { readdirSync, readFileSync } from 'node:fs'
 //  - Even app.exit(0) leaves the GPU/zygote children alive; Steam's reaper then waits on the whole
 //    process tree, so the NEXT launch hangs and the stale signed-in instance races the refresh token.
 //  - A BrowserWindow left undestroyed leaves a surface gamescope keeps expecting → hung session.
-// So: destroy windows (free the surface), SIGKILL every descendant + our process group, then a hard
-// process.exit (no graceful path to stall on). Wired to app:quit, window-all-closed, SIGTERM, SIGINT.
+// So: destroy windows (free the surface), SIGKILL every descendant, then a clean process.exit(0) so
+// Steam's reaper gets a proper SIGCHLD. (Do NOT also SIGKILL our own process group — that races the
+// reaper and leaves Big Picture stuck on "abort game".) Wired to app:quit, window-all-closed, SIGTERM, SIGINT.
 export function killTreeAndExit(reason = 'quit'): void {
   console.log('[quit]', reason)
 
@@ -59,15 +60,10 @@ export function killTreeAndExit(reason = 'quit'): void {
     /* /proc unavailable (non-Linux) */
   }
 
-  // 3) SIGKILL our own process group too — catches any child that re-parented or spawned mid-scan.
-  // No-op (ESRCH) if we aren't the group leader; the tree walk above already covered descendants.
-  try {
-    process.kill(-process.pid, 'SIGKILL')
-  } catch {
-    /* not the group leader */
-  }
-
-  // 4) Hard exit. process.exit (not app.exit) skips Electron's graceful shutdown, which is the part
-  // that stalls under gamescope. The children are already dead, so there's nothing to clean up.
+  // 3) Hard exit via process.exit — NOT app.exit (runs Electron's graceful shutdown that stalls under
+  // gamescope), and crucially NOT a process-group SIGKILL of ourselves (`kill(-pid)`): that terminates
+  // main in a way that races Steam's reaper, so Steam sees the PID vanish without a clean SIGCHLD and
+  // stays stuck thinking the game is running ("abort game" loop in Big Picture). The children are
+  // already SIGKILLed above, so a normal process.exit(0) lets the reaper observe the exit properly.
   process.exit(0)
 }
