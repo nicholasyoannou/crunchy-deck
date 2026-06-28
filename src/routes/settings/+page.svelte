@@ -162,6 +162,7 @@
           <button
             id="pref-display"
             data-focusable
+            data-focus-self
             onclick={pickDisplay}
             class="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-bold outline-none transition select:bg-surface-2 select:shadow-[inset_0_0_0_1.5px_#F47521]">
             <span class="text-white/80">Display language</span>
@@ -172,6 +173,7 @@
           <button
             id="pref-audio"
             data-focusable
+            data-focus-self
             onclick={pickAudio}
             class="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-bold outline-none transition select:bg-surface-2 select:shadow-[inset_0_0_0_1.5px_#F47521]">
             <span class="text-white/80">Audio language</span>
@@ -182,6 +184,7 @@
           <button
             id="pref-subtitle"
             data-focusable
+            data-focus-self
             onclick={pickSubtitle}
             class="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-bold outline-none transition select:bg-surface-2 select:shadow-[inset_0_0_0_1.5px_#F47521]">
             <span class="text-white/80">Subtitle language</span>
@@ -199,6 +202,7 @@
           <button
             id="cr-mature"
             data-focusable
+            data-focus-self
             onclick={() => savePref({ matureContent: !$prefs?.matureContent })}
             class="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-bold outline-none transition select:bg-surface-2 select:shadow-[inset_0_0_0_1.5px_#F47521]">
             <span class="min-w-0">
@@ -221,6 +225,7 @@
               <button
                 id={`skip-${i}`}
                 data-focusable
+                data-focus-self
                 onclick={() => chooseSkip(n)}
                 class="rounded px-3 py-2 font-bold outline-none transition select:ring-2 select:ring-brand {skip === n
                   ? 'bg-brand text-black'
@@ -244,6 +249,7 @@
               <button
                 id="upd-stable"
                 data-focusable
+                data-focus-self
                 disabled={checking}
                 onclick={() => setChannel('stable')}
                 class="flex-1 rounded px-3 py-2 text-sm font-bold outline-none transition select:ring-2 select:ring-brand disabled:opacity-60 {upd?.channel ===
@@ -254,6 +260,7 @@
               <button
                 id="upd-dev"
                 data-focusable
+                data-focus-self
                 disabled={checking}
                 onclick={() => setChannel('dev')}
                 class="flex-1 rounded px-3 py-2 text-sm font-bold outline-none transition select:ring-2 select:ring-brand disabled:opacity-60 {upd?.channel ===
@@ -273,6 +280,7 @@
           <button
             id="upd-check"
             data-focusable
+            data-focus-self
             disabled={checking}
             onclick={checkUpdates}
             class="w-full rounded bg-surface-2 px-4 py-2.5 font-bold outline-none transition select:bg-brand select:text-black disabled:opacity-60"
