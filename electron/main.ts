@@ -144,6 +144,7 @@ function installMediaHeaderRules() {
     {
       urls: [
         '*://*.crunchyrollcdn.com/*',
+        '*://*.gccrunchyroll.com/*', // CR's Google-Edge-Cache CDN — some content routes here, not Akamai
         '*://*.vrv.co/*',
         '*://*.akamaized.net/*',
         '*://*.crunchyrollsvc.com/*',
@@ -158,8 +159,10 @@ function installMediaHeaderRules() {
       // matches a TV and it never hits this.)
       for (const k of ['sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform', 'Sec-Ch-Ua', 'Sec-Ch-Ua-Mobile', 'Sec-Ch-Ua-Platform']) delete h[k]
       // CDN segments + the license host are also Referer/Origin hotlink-checked; the base sends none
-      // (it loads via file://), so strip those for those hosts too.
-      if (/crunchyrollcdn\.com|vrv\.co|akamaized\.net|crunchyrollsvc\.com/.test(details.url)) {
+      // (it loads via file://), so strip those for those hosts too. Includes gccrunchyroll.com — CR's
+      // Google-Edge-Cache CDN that some content (e.g. Wistoria S1E1) routes through; without stripping,
+      // it 403s the segments ("Google-Edge-Cache: forbidden") while Akamai-served episodes play fine.
+      if (/crunchyrollcdn\.com|gccrunchyroll\.com|vrv\.co|akamaized\.net|crunchyrollsvc\.com/.test(details.url)) {
         delete h['Referer']
         delete h['referer']
         delete h['Origin']
