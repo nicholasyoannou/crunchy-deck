@@ -21,7 +21,7 @@ importers:
         specifier: ^1.5.4
         version: 1.5.4
       shaka-player:
-        specifier: ^4.11.0
+        specifier: 4.16.38
         version: 4.16.38
     devDependencies:
       '@sveltejs/adapter-static':

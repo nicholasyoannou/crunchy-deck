@@ -41,7 +41,7 @@
     "@fontsource/geist-mono": "^5.2.8",
     "electron-updater": "^6.8.9",
     "qrcode": "^1.5.4",
-    "shaka-player": "^4.11.0"
+    "shaka-player": "4.16.38"
   },
   "build": {
     "appId": "app.crunchydeck",
