@@ -369,8 +369,8 @@
           </button>
         </div>
         <p class="mt-2 px-1 text-xs text-white/35">
-          Select a row, then press the gamepad button to assign it. Move skip to L2 / R2 so the Steam + R1 screenshot
-          chord stops skipping.
+          Highlight a row, press A, then press L1 / L2 / R1 / R2 to assign (only the shoulders + triggers can be
+          bound, so nav buttons stay safe). Hold a skip button to fast-forward / rewind.
         </p>
       </section>
 
