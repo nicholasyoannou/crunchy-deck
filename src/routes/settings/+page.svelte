@@ -1,8 +1,20 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, onDestroy } from 'svelte'
   import { goto } from '$app/navigation'
   import { clearHome, prefetchHome } from '$lib/api/homeStore'
   import { getSkipSeconds, setSkipSeconds, SKIP_OPTIONS } from '$lib/playback/skip'
+  import { getDefaultQuality, setDefaultQuality, QUALITY_OPTIONS, type Quality } from '$lib/playback/quality'
+  import {
+    getSkipBackBtn,
+    getSkipForwardBtn,
+    setSkipBackBtn,
+    setSkipForwardBtn,
+    buttonName,
+    armButtonCapture,
+    cancelButtonCapture,
+    DEFAULT_SKIP_BACK,
+    DEFAULT_SKIP_FORWARD
+  } from '$lib/input/bindings'
   import { prefs, loadPrefs, savePref } from '$lib/api/prefsStore'
   import { openPicker } from '$lib/ui/picker'
   import {
@@ -15,12 +27,49 @@
   } from '$lib/data/languages'
   import Icon from '$lib/ui/Icon.svelte'
 
-  // --- playback: L1/R1 skip interval ---
+  // --- playback: skip interval ---
   let skip = $state(3)
   function chooseSkip(n: number) {
     skip = n
     setSkipSeconds(n)
   }
+
+  // --- playback: default quality ---
+  let quality = $state<Quality>('auto')
+  function chooseQuality(q: Quality) {
+    quality = q
+    setDefaultQuality(q)
+  }
+
+  // --- controls: rebindable skip buttons (press a gamepad button to capture it) ---
+  let skipBackBtn = $state(DEFAULT_SKIP_BACK)
+  let skipForwardBtn = $state(DEFAULT_SKIP_FORWARD)
+  let capturing = $state<'back' | 'forward' | null>(null)
+  let captureTimer: ReturnType<typeof setTimeout> | null = null
+  function rebind(which: 'back' | 'forward') {
+    cancelButtonCapture()
+    if (captureTimer) clearTimeout(captureTimer)
+    capturing = which
+    armButtonCapture((index) => {
+      if (which === 'back') {
+        setSkipBackBtn(index)
+        skipBackBtn = index
+      } else {
+        setSkipForwardBtn(index)
+        skipForwardBtn = index
+      }
+      capturing = null
+      if (captureTimer) clearTimeout(captureTimer)
+    })
+    captureTimer = setTimeout(() => {
+      cancelButtonCapture()
+      capturing = null
+    }, 6000)
+  }
+  onDestroy(() => {
+    cancelButtonCapture()
+    if (captureTimer) clearTimeout(captureTimer)
+  })
 
   let account = $state<{ account_id?: string; country?: string } | null>(null)
   let membership = $state<{ premium: boolean | null } | null>(null)
@@ -120,6 +169,9 @@
     account = { account_id: s.data.account_id, country: s.data.country }
     phase = 'ready'
     skip = getSkipSeconds()
+    quality = getDefaultQuality()
+    skipBackBtn = getSkipBackBtn()
+    skipForwardBtn = getSkipForwardBtn()
     loadPrefs(true) // current profile's language + maturity prefs
     window.cr.account.membership().then((r: any) => (membership = r?.ok ? r.data : { premium: null }))
     upd = await window.cr.update.getState()
@@ -218,22 +270,73 @@
 
       <section>
         <h2 class="mb-2 text-xs font-bold uppercase tracking-wide text-white/40">Playback</h2>
-        <div class="rounded-card bg-surface-1 p-4 text-sm">
-          <div class="mb-2.5 text-white/70">Skip interval <span class="text-white/40">(L1 / R1)</span></div>
-          <div class="flex flex-wrap gap-2">
-            {#each SKIP_OPTIONS as n, i}
-              <button
-                id={`skip-${i}`}
-                data-focusable
-                data-focus-self
-                onclick={() => chooseSkip(n)}
-                class="rounded px-3 py-2 font-bold outline-none transition select:ring-2 select:ring-brand {skip === n
-                  ? 'bg-brand text-black'
-                  : 'bg-surface-2 text-white/80'}">{n}s</button
-              >
-            {/each}
+        <div class="space-y-4 rounded-card bg-surface-1 p-4 text-sm">
+          <div>
+            <div class="mb-2.5 text-white/70">
+              Skip interval <span class="text-white/40">({buttonName(skipBackBtn)} / {buttonName(skipForwardBtn)})</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              {#each SKIP_OPTIONS as n, i}
+                <button
+                  id={`skip-${i}`}
+                  data-focusable
+                  data-focus-self
+                  onclick={() => chooseSkip(n)}
+                  class="rounded px-3 py-2 font-bold outline-none transition select:ring-2 select:ring-brand {skip === n
+                    ? 'bg-brand text-black'
+                    : 'bg-surface-2 text-white/80'}">{n}s</button
+                >
+              {/each}
+            </div>
+          </div>
+          <div>
+            <div class="mb-2.5 text-white/70">Default quality</div>
+            <div class="flex flex-wrap gap-2">
+              {#each QUALITY_OPTIONS as q, i}
+                <button
+                  id={`quality-${i}`}
+                  data-focusable
+                  data-focus-self
+                  onclick={() => chooseQuality(q.value)}
+                  class="rounded px-3 py-2 font-bold outline-none transition select:ring-2 select:ring-brand {quality ===
+                  q.value
+                    ? 'bg-brand text-black'
+                    : 'bg-surface-2 text-white/80'}">{q.label}</button
+                >
+              {/each}
+            </div>
           </div>
         </div>
+      </section>
+
+      <section>
+        <h2 class="mb-2 text-xs font-bold uppercase tracking-wide text-white/40">Controls</h2>
+        <div class="divide-y divide-white/5 overflow-hidden rounded-card bg-surface-1">
+          <button
+            id="bind-back"
+            data-focusable
+            data-focus-self
+            onclick={() => rebind('back')}
+            class="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-bold outline-none transition select:bg-surface-2 select:shadow-[inset_0_0_0_1.5px_#F47521]">
+            <span class="text-white/80">Skip back</span>
+            <span class="font-bold {capturing === 'back' ? 'animate-pulse text-brand' : 'text-white/55'}"
+              >{capturing === 'back' ? 'Press a button…' : buttonName(skipBackBtn)}</span>
+          </button>
+          <button
+            id="bind-forward"
+            data-focusable
+            data-focus-self
+            onclick={() => rebind('forward')}
+            class="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-bold outline-none transition select:bg-surface-2 select:shadow-[inset_0_0_0_1.5px_#F47521]">
+            <span class="text-white/80">Skip forward</span>
+            <span class="font-bold {capturing === 'forward' ? 'animate-pulse text-brand' : 'text-white/55'}"
+              >{capturing === 'forward' ? 'Press a button…' : buttonName(skipForwardBtn)}</span>
+          </button>
+        </div>
+        <p class="mt-2 px-1 text-xs text-white/35">
+          Select a row, then press the gamepad button to assign it. Move skip to L2 / R2 so the Steam + R1 screenshot
+          chord stops skipping.
+        </p>
       </section>
 
       <section>

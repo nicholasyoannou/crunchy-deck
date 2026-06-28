@@ -6,8 +6,9 @@ export type Direction = 'up' | 'down' | 'left' | 'right'
 const BUTTON_MAP: Record<number, NavCommand> = {
   0: 'confirm', // A
   1: 'cancel', // B
-  4: 'prev', // LB
-  5: 'next', // RB
+  // L1/R1 (4/5) intentionally absent: skip back/forward are user-rebindable (default L1/R1) — see
+  // input/bindings.ts. Keeping them out of the static map lets a binding move them off the bumpers
+  // (e.g. to L2/R2) so the Steam+R1 screenshot chord stops triggering a skip.
   8: 'search', // Back/Select
   9: 'menu', // Start
   12: 'up',

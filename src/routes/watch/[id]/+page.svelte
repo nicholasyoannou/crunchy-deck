@@ -5,6 +5,7 @@
   import { goto } from '$app/navigation'
   import { authGuard } from '$lib/api/guard'
   import { prefs } from '$lib/api/prefsStore'
+  import { resolveQualityHeight } from '$lib/playback/quality'
   import shaka from 'shaka-player/dist/shaka-player.compiled.js'
 
   type Stream = {
@@ -215,6 +216,7 @@
       return
     }
     refreshQualities()
+    applyQualityForLoad(initial) // honour the default-quality pref (auto = ABR)
     scheduleRelease()
     status = 'playing'
     buffering = false
@@ -266,6 +268,21 @@
       qualities = [...new Set(v.map((t) => t.height).filter((h): h is number => !!h))].sort((a, b) => b - a)
     } catch {
       qualities = []
+    }
+  }
+  // On a fresh episode, set the target from the default-quality pref; on audio/sub reloads keep the
+  // current selection. Then apply it — ABR for auto, else lock the matching variant.
+  function applyQualityForLoad(initial: boolean) {
+    if (initial) {
+      const h = resolveQualityHeight(qualities)
+      curQuality = h == null ? 'auto' : h
+    }
+    if (curQuality === 'auto') {
+      player.configure('abr.enabled', true)
+    } else {
+      player.configure('abr.enabled', false)
+      const t = (player.getVariantTracks() as any[]).find((v) => v.height === curQuality)
+      if (t) player.selectVariantTrack(t, true)
     }
   }
   function chooseQuality(h: number | 'auto') {

@@ -1,4 +1,5 @@
-import { buttonToCommand, AxisTracker, type NavCommand, type Direction } from './gamepad'
+import { AxisTracker, type NavCommand, type Direction } from './gamepad'
+import { resolveButton, feedCapture } from './bindings'
 import { RepeatTimer } from './repeat'
 import { setInputType } from './inputType'
 import { dispatchCommand } from './commands'
@@ -29,9 +30,13 @@ export function startGamepadPoller() {
       pad.buttons.forEach((b, i) => {
         const pressed = b.pressed
         if (pressed && !prevButtons.get(i)) {
-          const cmd = buttonToCommand(i)
-          window.cr?.log(`[gp] btn=${i} cmd=${cmd ?? 'none'}`) // TEMP diagnostics
-          if (cmd) dispatch(cmd)
+          // a Settings rebind capture eats the next press; otherwise resolve (user skip binds + nav
+          // map) and dispatch.
+          if (!feedCapture(i)) {
+            const cmd = resolveButton(i)
+            window.cr?.log(`[gp] btn=${i} cmd=${cmd ?? 'none'}`) // TEMP diagnostics
+            if (cmd) dispatch(cmd)
+          }
         }
         prevButtons.set(i, pressed)
       })
