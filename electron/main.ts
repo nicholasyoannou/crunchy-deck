@@ -100,6 +100,10 @@ const MIME: Record<string, string> = {
 
 // Fixed loopback port for the bundled SPA so the origin (and its localStorage) is stable across launches.
 const STABLE_PORT = 43547
+// The static server, kept module-level so quit can close its listening socket before process.exit —
+// an open loopback socket/FD can keep Steam's reaper thinking the process is still alive (Big Picture
+// "abort game" loop).
+let staticServer: import('node:http').Server | null = null
 
 function serveStatic(dir: string): Promise<number> {
   const server = http.createServer((req, res) => {
@@ -121,6 +125,7 @@ function serveStatic(dir: string): Promise<number> {
       res.end('not found')
     }
   })
+  staticServer = server // closed on quit (see doQuit) so the loopback socket is released before exit
   // Listen on a STABLE port so the page origin (http://127.0.0.1:PORT) is the same every launch.
   // localStorage / IndexedDB are scoped to the exact origin, so a random port (listen 0) silently wiped
   // every persisted setting (e.g. the skip interval) on each restart. Fall back to a random port only if
@@ -270,12 +275,27 @@ app.whenReady().then(async () => {
   })
 })
 
-// Every quit path funnels through killTreeAndExit (fast, complete teardown). Crucially that includes
-// SIGTERM — how Steam's "Exit game" / closing from the overlay stops us; without this handler Electron
-// runs its slow graceful shutdown and quitting takes many seconds under gamescope.
-ipcMain.on('app:quit', () => killTreeAndExit('ipc'))
+// Every quit path funnels through doQuit. Crucially that includes SIGTERM — how Steam's "Exit game" /
+// overlay-close stops us; without this handler Electron runs its slow graceful shutdown (multi-second
+// under gamescope). Before the hard kill we CLOSE the static server: an open loopback listening socket
+// can keep Steam's reaper treating the process as still alive (Big Picture "abort game" loop), so we
+// release it first. removeAllListeners stops any stray IPC from re-triggering mid-teardown.
+function doQuit(reason: string) {
+  try {
+    staticServer?.close()
+  } catch {
+    /* ignore */
+  }
+  try {
+    ipcMain.removeAllListeners()
+  } catch {
+    /* ignore */
+  }
+  killTreeAndExit(reason)
+}
+ipcMain.on('app:quit', () => doQuit('ipc'))
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') killTreeAndExit('window-all-closed')
+  if (process.platform !== 'darwin') doQuit('window-all-closed')
 })
-process.on('SIGTERM', () => killTreeAndExit('sigterm'))
-process.on('SIGINT', () => killTreeAndExit('sigint'))
+process.on('SIGTERM', () => doQuit('sigterm'))
+process.on('SIGINT', () => doQuit('sigint'))
