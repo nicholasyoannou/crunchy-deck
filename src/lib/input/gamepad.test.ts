@@ -2,14 +2,16 @@ import { describe, it, expect } from 'vitest'
 import { buttonToCommand, AxisTracker } from './gamepad'
 
 describe('buttonToCommand', () => {
-  it('maps standard buttons', () => {
+  it('maps fixed navigation buttons', () => {
     expect(buttonToCommand(0)).toBe('confirm') // A
     expect(buttonToCommand(1)).toBe('cancel') // B
-    expect(buttonToCommand(4)).toBe('prev') // LB
-    expect(buttonToCommand(5)).toBe('next') // RB
     expect(buttonToCommand(9)).toBe('menu') // Start
     expect(buttonToCommand(12)).toBe('up')
     expect(buttonToCommand(15)).toBe('right')
+  })
+  it('leaves rebindable shoulder buttons to the bindings layer', () => {
+    expect(buttonToCommand(4)).toBeNull() // LB
+    expect(buttonToCommand(5)).toBeNull() // RB
   })
   it('returns null for unmapped buttons', () => {
     expect(buttonToCommand(16)).toBeNull()

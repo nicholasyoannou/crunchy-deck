@@ -27,25 +27,30 @@ const onGamescope = !!(
   /gamescope/i.test(process.env.XDG_SESSION_DESKTOP ?? '')
 )
 
-// Gaming-Mode launch fix: Chromium's seccomp-bpf sandbox conflicts with gamescope/Steam's kernel
-// sandboxing → the renderer hangs for minutes under gamescope. --no-sandbox resolves it. BUT on the
-// KDE Wayland Desktop the sandbox is fine and --no-sandbox instead BREAKS the renderer (the window
-// opens but the page never finishes loading → blank screen). So gate it to gamescope only; the Desktop
-// keeps its sandbox. (User-confirmed: Desktop worked before this Gaming-Mode tuning landed.)
-if (onGamescope) app.commandLine.appendSwitch('no-sandbox')
+// Capture Chromium/GPU-process failures too. These can occur before the JS logger is installed and are
+// otherwise invisible when Steam starts the packaged app without a terminal.
+app.commandLine.appendSwitch('enable-logging', 'file')
 
-// GPU: under gamescope the GL path is a trap (gl=none + crash-retry → blank / multi-minute launch), so
-// force software there. On the Desktop the hardware GPU works (it did before this tuning), so leave it.
-// CR_GL=<gl|gles|vulkan> opts into a hardware-accel attempt anywhere; CR_NO_GPU forces software. Must
-// run before app ready (module load).
+// Steam Gaming Mode is an XWayland client inside gamescope. Electron 38+ may auto-select native Wayland,
+// which is a materially different compositor path from Desktop Mode and can produce a black window or
+// renderer exit. Keep Gaming Mode on the mature XWayland path and retain the gamescope-only sandbox
+// workaround; Desktop Mode keeps Electron's automatic platform selection and normal sandbox.
+if (onGamescope) {
+  app.commandLine.appendSwitch('no-sandbox')
+  app.commandLine.appendSwitch('ozone-platform', 'x11')
+}
+
+// Keep the normal accelerated compositor under gamescope. Disabling it changes video/compositing behavior
+// and has caused black windows on Deck-class systems. CR_NO_GPU remains an explicit recovery switch, while
+// CR_GL=<gl|gles|vulkan> lets diagnostics select a specific ANGLE backend. Must run before app ready.
 function tuneGpuForGamescope() {
   const env = process.env
   if (env.CR_GL) {
     app.commandLine.appendSwitch('use-gl', 'angle')
     app.commandLine.appendSwitch('use-angle', env.CR_GL) // experiment with a real backend (e.g. vulkan)
     app.commandLine.appendSwitch('disable-gpu-sandbox')
-  } else if (env.CR_NO_GPU || onGamescope) {
-    app.disableHardwareAcceleration() // software under gamescope; Desktop uses the hardware GPU
+  } else if (env.CR_NO_GPU) {
+    app.disableHardwareAcceleration()
   }
 }
 tuneGpuForGamescope()
@@ -177,7 +182,9 @@ function createWindow(loadUrl: string) {
     title: 'Crunchy Deck',
     backgroundColor: '#0a0a0a',
     autoHideMenuBar: true,
-    fullscreen: true, // a TV/console-style app — launch filling the screen, not in a window
+    // gamescope already presents the Steam app fullscreen. Asking Electron to transition the X11 window
+    // into native fullscreen as it is being embedded can crash/restart gamescope on some Deck setups.
+    fullscreen: !onGamescope,
 
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -230,14 +237,27 @@ app.whenReady().then(async () => {
       wayland: e.WAYLAND_DISPLAY,
       display: e.DISPLAY,
       steam: !!(e.SteamEnv || e.SteamGameId || e.SteamAppId),
-      angle: app.commandLine.getSwitchValue('use-angle') || '(default)'
+      ozone: app.commandLine.getSwitchValue('ozone-platform') || '(auto)',
+      angle: app.commandLine.getSwitchValue('use-angle') || '(default)',
+      hardwareAcceleration: app.isHardwareAccelerationEnabled()
     })
   )
-  console.log('[gpu-features]', JSON.stringify(app.getGPUFeatureStatus()))
   app
     .getGPUInfo('basic')
-    .then((i) => console.log('[gpu]', JSON.stringify(i)))
+    .then((i) => {
+      console.log('[gpu]', JSON.stringify(i))
+      console.log('[gpu-features]', JSON.stringify(app.getGPUFeatureStatus()))
+    })
     .catch((err) => console.log('[gpu] info error', String(err)))
+  // CastLabs recommends waiting for Electron's component updater before creating a playback window.
+  // Continue after a rejected update (for example, offline) so a CDM update failure never hides the UI.
+  try {
+    await components.whenReady()
+    console.log('[cdm] components ready:', components.status())
+  } catch (err) {
+    console.error('[cdm] init error:', err)
+  }
+  boot('components-ready')
   installMediaHeaderRules()
   registerIpc()
   const url = isDev
@@ -247,15 +267,12 @@ app.whenReady().then(async () => {
   let win = createWindow(url)
   boot('window-created')
   initUpdater(win) // self-update from GitHub Releases (packaged AppImage only)
-  // Widevine CDM loads in the background; only playback needs it, so it must not
-  // block first paint (this is what lets the logo animation mask boot time).
-  components
-    .whenReady()
-    .then(() => console.log('[cdm] components ready:', components.status()))
-    .catch((e) => console.error('[cdm] init error:', e))
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) win = createWindow(url)
   })
+}).catch((err) => {
+  console.error('[boot-fatal]', err)
+  app.exit(1)
 })
 
 // Every quit path funnels through doQuit. Crucially that includes SIGTERM — how Steam's "Exit game" /
