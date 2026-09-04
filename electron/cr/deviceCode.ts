@@ -16,14 +16,28 @@ export interface DeviceCode {
 
 const DEFAULT_ACTIVATE = 'https://www.crunchyroll.com/activate'
 
+/** Crunchyroll's Tizen response normally reports milliseconds, while some
+ * response variants use seconds. Match the source's bounded conversion. */
+export function normalizeIntervalMs(raw: unknown): number {
+  const parsed = Number(raw)
+  const value = Number.isFinite(parsed) && parsed > 0 ? parsed : 5000
+  const milliseconds = value > 100 ? value : value * 1000
+  return Math.min(5000, Math.max(1000, milliseconds))
+}
+
 export function mapDeviceCodeResponse(r: any): DeviceCode {
   const bare = r?.verification_uri || DEFAULT_ACTIVATE
+  const complete = r?.verification_uri_complete || bare
+  const userCode = String(r?.user_code ?? '')
+  const withCode = /[?&]code=/.test(complete)
+    ? complete
+    : `${complete}${complete.includes('?') ? '&' : '?'}code=${encodeURIComponent(userCode)}`
   return {
     device_code: r?.device_code,
-    user_code: r?.user_code,
+    user_code: userCode,
     verification_uri: bare,
-    verification_uri_complete: r?.verification_uri_complete || bare,
+    verification_uri_complete: withCode,
     expires_in: r?.expires_in ?? 300,
-    interval: r?.polling_interval ?? r?.interval ?? 5
+    interval: normalizeIntervalMs(r?.polling_interval ?? r?.interval)
   }
 }

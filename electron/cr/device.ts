@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { crFetch, CR, CrError } from './client.js'
 import { adoptToken } from './auth.js'
+import { mapDeviceCodeResponse, type DeviceCode } from './deviceCode.js'
 
 // Endpoints + fields recovered from the official APK dex:
 //   POST /auth/v1/device/code  -> { device_code, user_code, expires_in, polling_interval }
@@ -27,27 +28,15 @@ function deviceId(): string {
   return id
 }
 
-export interface DeviceCode {
-  device_code: string
-  user_code: string
-  verification_uri: string
-  expires_in: number
-  interval: number
-}
-
 export async function requestDeviceCode(): Promise<DeviceCode> {
   const r: any = await crFetch(`${CR.API}/auth/v1/device/code`, {
     clientAuth: true,
     form: { device_id: deviceId(), device_type: DEVICE_TYPE, device_name: DEVICE_NAME }
   })
   console.log('[device] /code response:', JSON.stringify(r))
-  return {
-    device_code: r.device_code,
-    user_code: r.user_code,
-    verification_uri: r.verification_uri_complete || r.verification_uri || 'https://www.crunchyroll.com/activate',
-    expires_in: r.expires_in ?? 300,
-    interval: r.polling_interval ?? r.interval ?? 5
-  }
+  const mapped = mapDeviceCodeResponse(r)
+  if (!mapped.device_code || !mapped.user_code) throw new Error('Crunchyroll did not return a device code')
+  return mapped
 }
 
 export type PollStatus =

@@ -7,6 +7,7 @@
   import { prefs } from '$lib/api/prefsStore'
   import { resolveQualityHeight } from '$lib/playback/quality'
   import { getNextEpStyle, type NextEpStyle } from '$lib/playback/nextEp'
+  import { isCrunchyrollCdnUrl } from '$lib/playback/crunchyrollRequests'
   import shaka from 'shaka-player/dist/shaka-player.compiled.js'
 
   type Stream = {
@@ -14,6 +15,7 @@
     contentId: string
     assetId?: string
     videoToken: string
+    licenseUrl: string
     manifestUrl: string
     audioLocale?: string
     hardSubs: Record<string, { url: string }>
@@ -207,6 +209,7 @@
     curSub = sub
     const manifest = sub !== 'off' && s.hardSubs[sub]?.url ? s.hardSubs[sub].url : s.manifestUrl
     try {
+      player.configure({ drm: { servers: { 'com.widevine.alpha': s.licenseUrl || LICENSE } } })
       await player.load(manifest, atTime > 0 ? atTime : undefined)
       cur = atTime // reflect the start/resume position immediately so Skip Intro doesn't flash at cur=0 before the seek settles
     } catch (e: any) {
@@ -375,7 +378,7 @@
     const net = player.getNetworkingEngine()
     net.registerRequestFilter((type: any, req: any) => {
       const uri: string = req.uris?.[0] ?? ''
-      if (!uri.includes('crunchyrollcdn.com')) req.headers['Authorization'] = 'Bearer ' + (s?.accessToken ?? '')
+      if (!isCrunchyrollCdnUrl(uri)) req.headers['Authorization'] = 'Bearer ' + (s?.accessToken ?? '')
       if (type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
         req.headers['X-Cr-Content-Id'] = s?.contentId
         req.headers['X-Cr-Video-Token'] = s?.videoToken

@@ -1,7 +1,7 @@
 import { app } from 'electron'
 import path from 'node:path'
 import { readFileSync, writeFileSync } from 'node:fs'
-import { crFetch, CR } from './client.js'
+import { crFetch, CR, normalizeLicenseUrl } from './client.js'
 import { accessToken, accountId } from './auth.js'
 
 // Sync watch progress back to Crunchyroll (seconds), like the official apps — called periodically
@@ -93,7 +93,7 @@ export async function resolveStream(episodeId: string) {
   // Play (DRM token + manifest + audio versions + burned-in subtitle variants) and the content object
   // (title + age rating + episode numbering for the player chrome) in parallel.
   const [play, obj] = await Promise.all([
-    crFetch<any>(`${CR.PLAY}/v1/${episodeId}/tv/samsung/play`, { bearer: token }),
+    crFetch<any>(`${CR.PLAY}/v1/${episodeId}/tv/samsung/play`, { bearer: token, headers: { Accept: '*/*' } }),
     crFetch<any>(`${CR.API}/content/v2/cms/objects/${episodeId}?locale=en-US`, { bearer: token }).catch(() => null)
   ])
   console.log('[play] resolve', episodeId, '| token', String(play.token).slice(0, 16), '| leaksReleased', released)
@@ -117,6 +117,7 @@ export async function resolveStream(episodeId: string) {
     contentId: episodeId,
     assetId: play.assetId,
     videoToken: play.token,
+    licenseUrl: normalizeLicenseUrl(play.drm?.drmUrl),
     manifestUrl: play.url, // raw manifest (no burned-in subtitles)
     audioLocale: play.audioLocale,
     hardSubs: (play.hardSubs ?? {}) as Record<string, { url: string }>, // { locale: { url(manifest with subs burned in) } }

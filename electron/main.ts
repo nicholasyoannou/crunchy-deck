@@ -11,6 +11,7 @@ import { registerIpc } from './ipc.js'
 import { initUpdater } from './updater.js'
 import { killTreeAndExit } from './lifecycle.js'
 import { CR } from './cr/client.js'
+import { rewriteRendererRequestHeaders } from './cr/requestHeaders.js'
 
 const isDev = !!process.env.ELECTRON_RENDERER_URL
 
@@ -140,10 +141,9 @@ function serveStatic(dir: string): Promise<number> {
   })
 }
 
-// We serve the app over http://127.0.0.1, so Chromium attaches a Referer to CDN media requests. CR's
-// Akamai CDN hotlink-protects segments and denies any non-crunchyroll Referer ("403 Access Denied 2").
-// The base project loads via file:// (which sends no Referer) and plays fine — so strip the Referer
-// (and Origin) on CDN media requests to match. Page JS can't touch these forbidden headers; this can.
+// Shaka runs in the renderer, but Crunchyroll uses different header profiles for TV API/license
+// requests and signed media URLs. Page JS cannot reliably set Origin, Referer, User-Agent, or
+// Accept-Encoding, so enforce the profiles in the main process immediately before each request.
 function installMediaHeaderRules() {
   session.defaultSession.webRequest.onBeforeSendHeaders(
     {
@@ -157,27 +157,10 @@ function installMediaHeaderRules() {
       ]
     },
     (details, cb) => {
-      const h = details.requestHeaders
-      // Chromium Client Hints reveal the real platform (e.g. "Windows"), which contradicts our
-      // Tizen-TV User-Agent; CR's license server flags that mismatch and rejects with 4035. Strip
-      // them so we look like a consistent TV client. (The base repo runs on Linux, so its hint
-      // matches a TV and it never hits this.)
-      for (const k of ['sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform', 'Sec-Ch-Ua', 'Sec-Ch-Ua-Mobile', 'Sec-Ch-Ua-Platform']) delete h[k]
-      // CDN segments + the license host are also Referer/Origin hotlink-checked; the base sends none
-      // (it loads via file://), so strip those for those hosts too. Includes gccrunchyroll.com — CR's
-      // Google-Edge-Cache CDN that some content (e.g. Wistoria S1E1) routes through; without stripping,
-      // it 403s the segments ("Google-Edge-Cache: forbidden") while Akamai-served episodes play fine.
-      if (/crunchyrollcdn\.com|gccrunchyroll\.com|vrv\.co|akamaized\.net|crunchyrollsvc\.com/.test(details.url)) {
-        delete h['Referer']
-        delete h['referer']
-        delete h['Origin']
-        delete h['origin']
-      }
-      cb({ requestHeaders: h })
+      cb({ requestHeaders: rewriteRendererRequestHeaders(details.url, details.requestHeaders) })
     }
   )
-  // Diagnostic: log the EXACT headers the renderer sends to the license server, to compare against
-  // the base repo (which sends from a file:// origin, i.e. no Origin/Referer).
+  // Diagnostic: log the final license profile without logging complete credentials.
   session.defaultSession.webRequest.onSendHeaders({ urls: ['*://*.crunchyrollsvc.com/*'] }, (details) => {
     if (!details.url.includes('license')) return
     const hs = Object.entries(details.requestHeaders)

@@ -68,7 +68,14 @@ interface CrBridge {
     history(locale?: string): Promise<CrResult<any[]>>
   }
   device: {
-    code(): Promise<CrResult<{ device_code: string; user_code: string; verification_uri: string; expires_in: number; interval: number }>>
+    code(): Promise<CrResult<{
+      device_code: string
+      user_code: string
+      verification_uri: string
+      verification_uri_complete: string
+      expires_in: number
+      interval: number
+    }>>
     poll(
       device_code: string
     ): Promise<CrResult<{ status: 'ok' | 'pending' | 'slow_down' | 'expired' | 'error'; error?: string }>>
@@ -82,6 +89,7 @@ interface CrBridge {
         contentId: string
         assetId?: string
         videoToken: string
+        licenseUrl: string
         manifestUrl: string
         audioLocale?: string
         hardSubs: Record<string, { url: string }>

@@ -15,8 +15,9 @@
   let verifyUri = $state('https://www.crunchyroll.com/activate')
   let qrStatus: 'starting' | 'waiting' | 'expired' | 'error' = $state('starting')
   let qrError = $state('')
-  let poll: ReturnType<typeof setInterval> | null = null
+  let poll: ReturnType<typeof setTimeout> | null = null
   let expireTimer: ReturnType<typeof setTimeout> | null = null
+  let pollGeneration = 0
 
   // email fallback
   let username = $state('')
@@ -25,12 +26,14 @@
   let emailError = $state('')
 
   function stopPolling() {
-    if (poll) { clearInterval(poll); poll = null }
+    pollGeneration++
+    if (poll) { clearTimeout(poll); poll = null }
     if (expireTimer) { clearTimeout(expireTimer); expireTimer = null }
   }
 
   async function startQr() {
     stopPolling()
+    const generation = pollGeneration
     qrStatus = 'starting'
     qrError = ''
     qrImg = ''
@@ -45,13 +48,10 @@
       qrError = res.error
       return
     }
-    const { user_code, verification_uri, device_code, expires_in, interval } = res.data
+    const { user_code, verification_uri, verification_uri_complete, device_code, expires_in, interval } = res.data
     userCode = user_code
     verifyUri = verification_uri
-    // CR's /device/code returns no verification_uri, so we embed the code ourselves: scanning then
-    // opens a pre-filled activation page (sign in automatically, like the Crunchyroll TV app).
-    const qrTarget = /[?&]/.test(verification_uri) ? verification_uri : `${verification_uri}?code=${user_code}`
-    qrImg = await QRCode.toDataURL(qrTarget, { width: 176, margin: 1 })
+    qrImg = await QRCode.toDataURL(verification_uri_complete, { width: 176, margin: 1 })
     qrStatus = 'waiting'
     // CR quirk: expires_in is seconds, but interval is milliseconds.
     expireTimer = setTimeout(() => {
@@ -59,9 +59,14 @@
       qrStatus = 'expired'
     }, Math.max(5, expires_in) * 1000)
 
+    let pollMs = interval
     const doPoll = async () => {
       const p = await window.cr.device.poll(device_code)
-      if (!p.ok) return
+      if (generation !== pollGeneration) return
+      if (!p.ok) {
+        poll = setTimeout(doPoll, pollMs)
+        return
+      }
       const s = p.data.status
       if (s === 'ok') {
         stopPolling()
@@ -73,12 +78,12 @@
         stopPolling()
         qrStatus = 'error'
         qrError = p.data.error ?? 'Device login failed'
+      } else {
+        if (s === 'slow_down') pollMs = Math.min(15_000, pollMs * 2)
+        poll = setTimeout(doPoll, pollMs)
       }
-      // pending / slow_down -> keep waiting
     }
-    const pollMs = Math.min(5000, Math.max(1000, interval)) // interval is ms; clamp to 1–5s
     doPoll() // poll immediately, then on interval
-    poll = setInterval(doPoll, pollMs)
   }
 
   async function submitEmail(e: Event) {
