@@ -8,7 +8,7 @@ An unofficial controller-first Crunchyroll client made for the Steam Deck. Sign 
 ## How to install on the Steam Deck (or other Linux-based handhelds)
 1. Download the latest AppImage from [Releases](https://github.com/nicholasyoannou/crunchy-deck/releases/latest).
 2. (Optional) Move the application somewhere permanent.
-3. Add the AppImage to Steam, or your desired launcher.
+3. Add the AppImage to Steam, or your desired launcher. If launching through Steam, ensure you add `--no-sandbox` under Target. For example, `"/home/deck/Downloads/crunchy-deck.AppImage" --no-sandbox`
 
 If you want to add it to Steam, right click on the file (left back trigger) → Add to Steam. You can then launch it directly through Steam. You can configure the box art manually using assets from [SteamGridDB](https://www.steamgriddb.com/), or more easily using the [SteamGridDB plugin for Decky Loader](https://github.com/SteamGridDB/decky-steamgriddb).
 
