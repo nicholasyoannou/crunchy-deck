@@ -45,7 +45,8 @@ function homeIntent(cmd: NavCommand): boolean {
 
 // Single entry point for ALL input sources (gamepad, keyboard, on-screen test pad).
 export function dispatchCommand(cmd: NavCommand) {
-  window.cr?.log(`[cmd] ${cmd} @ ${location.pathname}`) // TEMP diagnostics
+  // Keep: e2e/controller.spec.ts counts dispatched commands from this exact log line.
+  window.cr?.log(`[cmd] ${cmd} @ ${location.pathname}`)
   // A single-select overlay (language picker) traps input: D-pad moves within its list, A selects,
   // B closes. The page beneath is [inert] so moveFocus only sees the picker's options.
   if (isPickerOpen()) {

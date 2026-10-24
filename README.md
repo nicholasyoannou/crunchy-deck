@@ -31,6 +31,23 @@ pnpm install
 pnpm dev         
 ```
 
+### Tests
+
+```bash
+pnpm test
+pnpm check
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
+
+The browser tests run the app at `/demo` with simulated standard-mapped DualSense
+and Steam Deck gamepads connected together. They exercise the real animation loop,
+command routing, focus navigation, clicks, and menu open/close behavior with each
+controller active in turn. Button holds must dispatch once until released; stick
+holds retain the intentional delayed repeat. Unit tests also cover sparse slots,
+simultaneous presses, disconnect/replacement, and playback skip hold timers.
+These tests do not require a Crunchyroll login or physical controllers.
+
 ### Build & run
 
 ```bash
