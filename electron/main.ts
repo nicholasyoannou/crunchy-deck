@@ -1,4 +1,4 @@
-import { app, BrowserWindow, components, session, ipcMain } from 'electron'
+import { app, BrowserWindow, components, session, ipcMain, screen } from 'electron'
 import path from 'node:path'
 import http from 'node:http'
 import dns from 'node:dns'
@@ -58,11 +58,25 @@ tuneGpuForGamescope()
 // The UI is laid out at a desktop 16px-root baseline, but the Steam Deck panel is 1280x800 on a
 // dense 7" screen — at DPR 1 every CSS px is one tiny physical px, so the whole UI reads as
 // minuscule held-in-hand. Apply a page zoom so text/cards/video all scale up crisply (zoom also
-// multiplies devicePixelRatio, so images stay sharp). Tunable via CR_UI_SCALE for other displays.
-const UI_SCALE = (() => {
-  const n = Number(process.env.CR_UI_SCALE)
-  return Number.isFinite(n) && n > 0 ? n : 1.5
-})()
+// multiplies devicePixelRatio, so images stay sharp). The zoom is 1.5 at the Deck's 800px height and
+// scales linearly with the display height, so bigger screens (docked TV, Steam Machine) keep the same
+// layout instead of shrinking it. Gaming Mode's gamescope X screen stays 1280x800 even when docked
+// (unless the shortcut's Steam "Game Resolution" is raised), so there it remains 1.5. Tunable via
+// CR_UI_SCALE, which overrides the calculation.
+function calculateUiScale(win?: BrowserWindow): number {
+  const envScale = Number(process.env.CR_UI_SCALE)
+  if (Number.isFinite(envScale) && envScale > 0) return envScale
+
+  try {
+    const display = win ? screen.getDisplayMatching(win.getBounds()) : screen.getPrimaryDisplay()
+    const { height } = display.bounds
+    // Baseline ratio: 800p baseline -> scale 1.5. Scales linearly with screen height.
+    const calculatedScale = (height / 800) * 1.5
+    return Math.max(1.0, Math.min(Number(calculatedScale.toFixed(2)), 4.0))
+  } catch {
+    return 1.5 // the Deck baseline, if the display can't be queried
+  }
+}
 
 // Mirror console output to a file so the packaged (windowed, no-stdout) app is debuggable.
 function installFileLogger() {
@@ -176,9 +190,13 @@ function installMediaHeaderRules() {
 }
 
 function createWindow(loadUrl: string) {
+  // Dynamically match current display resolution instead of hardcoded 1280x800
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width, height } = primaryDisplay.bounds
+
   const win = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width,
+    height,
     title: 'Crunchy Deck',
     backgroundColor: '#0a0a0a',
     autoHideMenuBar: true,
@@ -196,15 +214,29 @@ function createWindow(loadUrl: string) {
       webSecurity: false
     }
   })
+
+  const applyZoom = () => {
+    if (!win.isDestroyed()) {
+      win.webContents.setZoomFactor(calculateUiScale(win))
+    }
+  }
+
   win.webContents.setUserAgent(CR.UA) // Tizen-TV UA to match the cr_smart_tv client
   win.on('page-title-updated', (e) => e.preventDefault()) // keep the OS window titled "Crunchy Deck"
-  // Scale the UI up for the Deck panel. Pin the zoom on every load so SPA reloads / HMR can't
+
+  // Scale the UI for the current display. Pin the zoom on every load so SPA reloads / HMR can't
   // reset it, and clamp pinch-zoom so the layout can't drift off this baseline.
   win.webContents.on('did-finish-load', () => {
     boot('did-finish-load')
     win.webContents.setVisualZoomLevelLimits(1, 1)
-    win.webContents.setZoomFactor(UI_SCALE)
+    applyZoom()
   })
+
+  // Recalculate when the window resizes or moves: it may now sit on a different display. Resolution
+  // changes on the same display (docking/undocking) are handled by display-metrics-changed below.
+  win.on('resize', applyZoom)
+  win.on('move', applyZoom)
+
   // Blank-screen diagnostics: pinpoint WHERE the load dies (start -> dom-ready -> finish), surface a
   // renderer crash / failed load / its console errors. All land in app.log.
   win.webContents.on('did-start-loading', () => boot('did-start-loading'))
@@ -224,6 +256,16 @@ function createWindow(loadUrl: string) {
 app.whenReady().then(async () => {
   installFileLogger()
   boot('app-ready')
+
+  // Listen for screen resolution changes (e.g., plugging into 1080p/4K TVs in SteamOS Gaming Mode)
+  screen.on('display-metrics-changed', () => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.setZoomFactor(calculateUiScale(win))
+      }
+    }
+  })
+
   app.on('child-process-gone', (_e, d) => console.log('[child-gone]', JSON.stringify(d)))
   // Diagnostics: session/compositor + GPU backend, so a blank Gaming-Mode window is debuggable from app.log.
   const e = process.env
